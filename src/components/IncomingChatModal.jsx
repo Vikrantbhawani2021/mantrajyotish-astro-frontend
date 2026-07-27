@@ -1,0 +1,155 @@
+import { useState, useEffect } from "react";
+import { Check, X, Clock, Calendar, MapPin, User, Sparkles, MessageSquare } from "lucide-react";
+import { acceptChatApi, rejectChatApi } from "../config/api";
+import { acceptChatRequest, joinChatRoom } from "../services/socket";
+
+export default function IncomingChatModal({ request, onAccept, onDecline }) {
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const sessionId = request?.sessionId || request?._id || request?.id || request?.chatId || "";
+  const user = request?.user || {};
+  const perMinuteRate = Number(request?.perMinuteRate || request?.rate || 20) || 20;
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      handleDecline();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  const handleAccept = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      // 1. Emit socket events to join room and accept chat
+      if (sessionId) {
+        joinChatRoom(sessionId);
+        acceptChatRequest(sessionId);
+      }
+      // 2. Call REST API /api/chat/accept
+      await acceptChatApi(sessionId, request);
+      onAccept(request);
+    } catch (err) {
+      console.error("Error accepting chat:", err);
+      onAccept(request);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+
+
+  const handleDecline = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await rejectChatApi(sessionId);
+    } catch (err) {
+      console.error("Error declining chat:", err);
+    } finally {
+      setIsProcessing(false);
+      onDecline(sessionId);
+    }
+  };
+
+  if (!request) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+      <div className="w-full max-w-sm bg-gradient-to-b from-gray-900 via-gray-900 to-[#1e130c] text-white rounded-[32px] p-6 border border-orange-500/30 shadow-[0_0_50px_rgba(255,116,72,0.25)] flex flex-col items-center relative overflow-hidden">
+        
+        {/* Glowing Top Badge */}
+        <div className="flex items-center gap-2 bg-[#ff7448]/20 border border-[#ff7448]/40 px-3.5 py-1 rounded-full text-xs font-bold text-[#ff8e6c] animate-pulse">
+          <Sparkles className="w-3.5 h-3.5 text-[#ff7448]" />
+          <span>INCOMING CHAT REQUEST</span>
+        </div>
+
+        {/* User Image & Ring Timer */}
+        <div className="relative mt-5 mb-4">
+          <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-[#ff7448] via-yellow-500 to-[#D53F8C] shadow-lg flex items-center justify-center">
+            <img
+              src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
+              alt={user?.name || "User"}
+              className="w-full h-full rounded-full object-cover border-2 border-gray-900"
+            />
+          </div>
+
+          {/* Countdown Badge */}
+          <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center font-black text-sm border-2 border-gray-900 shadow-md">
+            {timeLeft}s
+          </div>
+        </div>
+
+        {/* User Name & Rate */}
+        <h2 className="text-xl font-bold text-center tracking-tight text-white">{user?.name || "User Client"}</h2>
+        <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-gray-300">
+          <span className="bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+            ₹{perMinuteRate}/min Rate
+          </span>
+          <span className="text-gray-400">•</span>
+          <span className="text-orange-300 font-bold flex items-center gap-1">
+            <MessageSquare className="w-3 h-3" /> Live Chat
+          </span>
+        </div>
+
+        {/* User Birth & Kundli Details Box */}
+        <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 mt-5 flex flex-col gap-2 text-xs text-gray-300">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#ff7448]" /> DOB:
+            </span>
+            <span className="font-semibold text-white">{user?.dob || "Not Specified"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-[#ff7448]" /> TOB:
+            </span>
+            <span className="font-semibold text-white">{user?.tob || "Not Specified"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-[#ff7448]" /> POB:
+            </span>
+            <span className="font-semibold text-white truncate max-w-[170px]">{user?.pob || "Not Specified"}</span>
+          </div>
+          {user?.topic && (
+            <div className="pt-1.5 mt-1 border-t border-white/10 flex items-center justify-between">
+              <span className="text-gray-400 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-[#ff7448]" /> Topic:
+              </span>
+              <span className="font-bold text-orange-400">{user.topic}</span>
+            </div>
+          )}
+        </div>
+
+
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3 w-full mt-6">
+          <button
+            onClick={handleDecline}
+            disabled={isProcessing}
+            className="flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 py-3 rounded-2xl font-bold transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <X className="w-5 h-5" />
+            <span>Decline</span>
+          </button>
+
+          <button
+            onClick={handleAccept}
+            disabled={isProcessing}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-3 rounded-2xl font-extrabold shadow-lg shadow-emerald-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <Check className="w-5 h-5" />
+            <span>{isProcessing ? "Accepting..." : "Accept"}</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
