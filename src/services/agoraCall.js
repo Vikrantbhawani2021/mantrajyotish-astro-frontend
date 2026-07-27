@@ -44,7 +44,19 @@ export const joinAgoraCallChannel = async ({
     // Create client instance if not exists
     if (!rtcClient) {
       rtcClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    } else {
+      // Remove previous listeners to prevent duplicates
+      rtcClient.removeAllListeners("user-published");
+      rtcClient.removeAllListeners("user-unpublished");
+      rtcClient.removeAllListeners("user-left");
+      rtcClient.removeAllListeners("user-joined");
     }
+
+    // Handle Safari/Mobile Autoplay restrictions
+    AgoraRTC.onAutoplayFailed = () => {
+      console.warn("Autoplay blocked by browser. User must click to resume audio.");
+      alert("Browser blocked audio. Please click anywhere on the page to hear the call.");
+    };
 
     // Register Remote Event Listeners
     rtcClient.on("user-published", async (user, mediaType) => {
@@ -52,7 +64,11 @@ export const joinAgoraCallChannel = async ({
       await rtcClient.subscribe(user, mediaType);
 
       if (mediaType === "audio") {
-        user.audioTrack?.play();
+        try {
+          user.audioTrack?.play();
+        } catch (e) {
+          console.error("Audio playback error:", e);
+        }
       }
 
       if (callEvents.onRemoteTrackPublished) {
