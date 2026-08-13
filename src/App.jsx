@@ -33,6 +33,15 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
   const token = localStorage.getItem("astrologerToken");
   if (token) {
+    const userRaw = localStorage.getItem("astrologerUser");
+    if (userRaw) {
+      try {
+        const user = JSON.parse(userRaw);
+        if (user.status !== "approved" && !user.isVerified) {
+          return <Navigate to="/pending-approval" replace />;
+        }
+      } catch (e) {}
+    }
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -55,7 +64,19 @@ function AppContent() {
         element={
           <PublicRoute>
             <Login
-              onLoginSuccess={() => navigate("/dashboard")}
+              onLoginSuccess={() => {
+                const uRaw = localStorage.getItem("astrologerUser");
+                if (uRaw) {
+                  try {
+                    const u = JSON.parse(uRaw);
+                    if (u.status !== "approved" && !u.isVerified) {
+                      navigate("/pending-approval");
+                      return;
+                    }
+                  } catch (e) {}
+                }
+                navigate("/dashboard");
+              }}
               onNavigateToSignup={() => navigate("/create-profile")}
               onNavigateToForgot={() => navigate("/forgot")}
             />
@@ -67,7 +88,19 @@ function AppContent() {
         element={
           <PublicRoute>
             <Login
-              onLoginSuccess={() => navigate("/dashboard")}
+              onLoginSuccess={() => {
+                const uRaw = localStorage.getItem("astrologerUser");
+                if (uRaw) {
+                  try {
+                    const u = JSON.parse(uRaw);
+                    if (u.status !== "approved" && !u.isVerified) {
+                      navigate("/pending-approval");
+                      return;
+                    }
+                  } catch (e) {}
+                }
+                navigate("/dashboard");
+              }}
               onNavigateToSignup={() => navigate("/create-profile")}
               onNavigateToForgot={() => navigate("/forgot")}
             />
