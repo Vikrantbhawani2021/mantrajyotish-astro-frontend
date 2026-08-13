@@ -1,35 +1,37 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://mantrajyotish-backend.vercel.app/api/astrologer";
-export const UPLOAD_IMAGE_URL = import.meta.env.VITE_UPLOAD_IMAGE_URL || "https://mantrajyotish-backend.vercel.app/api/upload/image";
-export const TOGGLE_ONLINE_URL = import.meta.env.VITE_TOGGLE_ONLINE_URL || "https://mantrajyotish-backend.vercel.app/api/astro/toggle-online";
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://mantrajyotish-backend.vercel.app";
+import api from "./axiosInstance";
+
+export const API_BASE_URL = import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL}/api/astrologer` : (import.meta.env.VITE_API_BASE_URL || "");
+export const UPLOAD_IMAGE_URL = import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL}/api/upload/image` : (import.meta.env.VITE_UPLOAD_IMAGE_URL || "");
+export const TOGGLE_ONLINE_URL = import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL}/api/astro/toggle-online` : (import.meta.env.VITE_TOGGLE_ONLINE_URL || "");
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || "";
 
 export const API_ENDPOINTS = {
-  REGISTER: `${API_BASE_URL}/register`,
-  LOGIN: `${API_BASE_URL}/login`,
-  SEND_OTP: `${API_BASE_URL}/forgot-password/send-otp`,
-  RESET_PASSWORD: `${API_BASE_URL}/forgot-password/reset`,
-  UPLOAD_IMAGE: UPLOAD_IMAGE_URL,
-  TOGGLE_ONLINE: TOGGLE_ONLINE_URL,
+  REGISTER: `/api/astrologer/register`,
+  LOGIN: `/api/astrologer/login`,
+  SEND_OTP: `/api/astrologer/forgot-password/send-otp`,
+  RESET_PASSWORD: `/api/astrologer/forgot-password/reset`,
+  UPLOAD_IMAGE: `/api/upload/image`,
+  TOGGLE_ONLINE: `/api/astro/toggle-online`,
   // Interview flow
-  SEND_REQUEST: `${SOCKET_URL}/api/interview/request`,
-  GET_APPROVAL_STATUS: `${API_BASE_URL}/approval-status`,
-  GET_MY_INTERVIEW: `${SOCKET_URL}/api/interview/details`,
+  SEND_REQUEST: `/api/interview/request`,
+  GET_APPROVAL_STATUS: `/api/astrologer/approval-status`,
+  GET_MY_INTERVIEW: `/api/interview/details`,
   // Live Chat System Endpoints
-  CHAT_ACCEPT: `${SOCKET_URL}/api/chat/accept`,
-  CHAT_REJECT: `${SOCKET_URL}/api/chat/reject`,
-  CHAT_END: `${SOCKET_URL}/api/chat/end`,
-  CHAT_MESSAGES: `${SOCKET_URL}/api/chat/history`,
-  CHAT_HISTORY: `${SOCKET_URL}/api/chat/sessions`,
-  CHAT_RATE: `${SOCKET_URL}/api/chat/rate`,
+  CHAT_ACCEPT: `/api/chat/accept`,
+  CHAT_REJECT: `/api/chat/reject`,
+  CHAT_END: `/api/chat/end`,
+  CHAT_MESSAGES: `/api/chat/history`,
+  CHAT_HISTORY: `/api/chat/sessions`,
+  CHAT_RATE: `/api/chat/rate`,
 
   // Video & Audio Call System Endpoints (/api/video-session)
-  VIDEO_SESSION_BASE: `${SOCKET_URL}/api/video-session`,
-  CALL_REQUEST: `${SOCKET_URL}/api/video-session/request`,
-  CALL_ACCEPT: `${SOCKET_URL}/api/video-session/accept`,
-  CALL_REJECT: `${SOCKET_URL}/api/video-session/reject`,
-  CALL_END: `${SOCKET_URL}/api/video-session/end`,
-  CALL_HISTORY: `${SOCKET_URL}/api/video-session/history`,
-  GENERATE_TOKEN: `${SOCKET_URL}/api/video-session/generate-token`,
+  VIDEO_SESSION_BASE: `/api/video-session`,
+  CALL_REQUEST: `/api/video-session/request`,
+  CALL_ACCEPT: `/api/video-session/accept`,
+  CALL_REJECT: `/api/video-session/reject`,
+  CALL_END: `/api/video-session/end`,
+  CALL_HISTORY: `/api/video-session/history`,
+  GENERATE_TOKEN: `/api/video-session/generate-token`,
 };
 
 
