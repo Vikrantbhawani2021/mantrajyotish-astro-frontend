@@ -358,17 +358,20 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
     localStorage.setItem("astrologer_profile_data", JSON.stringify(payload));
     
     try {
-      const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/astrologer";
-      const createAstroUrl = apiBaseUrl.replace(/\/astrologer\/?$/, '/astro/create');
-      await fetch(createAstroUrl, {
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
       });
+      const data = await response.json().catch(() => ({}));
+      if (data.token) {
+        localStorage.setItem("astrologerToken", data.token);
+      }
+      if (data.astrologer || data.user) {
+        localStorage.setItem("astrologerUser", JSON.stringify(data.astrologer || data.user));
+      }
     } catch (apiErr) {
       console.warn("Failed to send profile to backend API on form submit:", apiErr);
     }
