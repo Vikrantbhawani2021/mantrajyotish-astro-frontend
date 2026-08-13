@@ -940,10 +940,10 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
 
   return (
     <div className="h-screen bg-[#F4F5FB] flex justify-center overflow-hidden relative">
-      <div className="w-full max-w-[430px] h-screen bg-[#F4F5FB] overflow-hidden flex flex-col">
+      <div className="w-full md:max-w-[1280px] h-screen bg-[#F4F5FB] overflow-hidden flex flex-col">
         {activeView === "grid" && <Header />}
 
-        <div className={activeView === "grid" ? "px-6 pt-4 pb-4 flex-1 overflow-y-auto" : "flex-1 overflow-hidden flex flex-col"}>
+        <div className={activeView === "grid" ? "px-6 md:px-12 pt-4 pb-4 flex-1 overflow-y-auto" : "flex-1 overflow-hidden flex flex-col"}>
           {renderActiveView()}
         </div>
       </div>

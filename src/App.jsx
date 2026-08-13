@@ -7,56 +7,106 @@ import ResetPassword from "./pages/ResetPassword";
 import CreateProfile from "./pages/CreateProfile";
 import PendingApproval from "./pages/PendingApproval";
 
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem("astrologerToken");
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Inspect onboarding and approval status
+  const userRaw = localStorage.getItem("astrologerUser");
+  if (userRaw) {
+    try {
+      const user = JSON.parse(userRaw);
+      if (user.status !== "approved" && !user.isVerified) {
+        const profileDraft = localStorage.getItem("astrologer_profile_data") || localStorage.getItem("astrologer_profile_draft");
+        if (!profileDraft && !user.name) {
+          return <Navigate to="/create-profile" replace />;
+        }
+        return <Navigate to="/pending-approval" replace />;
+      }
+    } catch (e) {
+      console.error("Error parsing user onboarding status:", e);
+    }
+  }
+
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const token = localStorage.getItem("astrologerToken");
+  if (token) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
 function AppContent() {
   const navigate = useNavigate();
 
+  const handleLogout = () => {
+    localStorage.removeItem("astrologerToken");
+    localStorage.removeItem("astrologerUser");
+    navigate("/login");
+  };
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to={localStorage.getItem("astrologerToken") ? "/dashboard" : "/login"} replace />} />
       <Route
         path="/home"
         element={
-          <Login
-            onLoginSuccess={() => navigate("/dashboard")}
-            onNavigateToSignup={() => navigate("/create-profile")}
-            onNavigateToForgot={() => navigate("/forgot")}
-          />
+          <PublicRoute>
+            <Login
+              onLoginSuccess={() => navigate("/dashboard")}
+              onNavigateToSignup={() => navigate("/create-profile")}
+              onNavigateToForgot={() => navigate("/forgot")}
+            />
+          </PublicRoute>
         }
       />
       <Route
         path="/login"
         element={
-          <Login
-            onLoginSuccess={() => navigate("/dashboard")}
-            onNavigateToSignup={() => navigate("/create-profile")}
-            onNavigateToForgot={() => navigate("/forgot")}
-          />
+          <PublicRoute>
+            <Login
+              onLoginSuccess={() => navigate("/dashboard")}
+              onNavigateToSignup={() => navigate("/create-profile")}
+              onNavigateToForgot={() => navigate("/forgot")}
+            />
+          </PublicRoute>
         }
       />
       <Route
         path="/signup"
         element={
-          <Signup
-            onSignupSuccess={() => navigate("/create-profile")}
-            onNavigateToLogin={() => navigate("/home")}
-          />
+          <PublicRoute>
+            <Signup
+              onSignupSuccess={() => navigate("/create-profile")}
+              onNavigateToLogin={() => navigate("/home")}
+            />
+          </PublicRoute>
         }
       />
       <Route
         path="/forgot"
         element={
-          <Forgot
-            onNavigateToLogin={() => navigate("/home")}
-            onNavigateToResetPassword={() => navigate("/reset-password")}
-          />
+          <PublicRoute>
+            <Forgot
+              onNavigateToLogin={() => navigate("/home")}
+              onNavigateToResetPassword={() => navigate("/reset-password")}
+            />
+          </PublicRoute>
         }
       />
       <Route
         path="/reset-password"
         element={
-          <ResetPassword
-            onNavigateToLogin={() => navigate("/home")}
-          />
+          <PublicRoute>
+            <ResetPassword
+              onNavigateToLogin={() => navigate("/home")}
+            />
+          </PublicRoute>
         }
       />
       <Route
@@ -79,15 +129,27 @@ function AppContent() {
       />
       <Route
         path="/dashboard"
-        element={<Dashboard onLogout={() => navigate("/home")} />}
+        element={
+          <ProtectedRoute>
+            <Dashboard onLogout={handleLogout} />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/wallet"
-        element={<Dashboard onLogout={() => navigate("/home")} initialOpenWithdraw={false} />}
+        element={
+          <ProtectedRoute>
+            <Dashboard onLogout={handleLogout} initialOpenWithdraw={false} />
+          </ProtectedRoute>
+        }
       />
       <Route
         path="/withdraw"
-        element={<Dashboard onLogout={() => navigate("/home")} initialOpenWithdraw={true} />}
+        element={
+          <ProtectedRoute>
+            <Dashboard onLogout={handleLogout} initialOpenWithdraw={true} />
+          </ProtectedRoute>
+        }
       />
     </Routes>
   );

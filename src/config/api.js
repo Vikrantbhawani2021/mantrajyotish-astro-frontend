@@ -10,24 +10,26 @@ export const API_ENDPOINTS = {
   RESET_PASSWORD: `${API_BASE_URL}/forgot-password/reset`,
   UPLOAD_IMAGE: UPLOAD_IMAGE_URL,
   TOGGLE_ONLINE: TOGGLE_ONLINE_URL,
-  SEND_REQUEST: `${API_BASE_URL}/send-request`,
+  // Interview flow
+  SEND_REQUEST: `${SOCKET_URL}/api/interview/request`,
   GET_APPROVAL_STATUS: `${API_BASE_URL}/approval-status`,
+  GET_MY_INTERVIEW: `${SOCKET_URL}/api/interview/details`,
   // Live Chat System Endpoints
-  CHAT_ACCEPT: `https://kalpjoytish-backend.onrender.com/api/chat/accept`,
-  CHAT_REJECT: `https://kalpjoytish-backend.onrender.com/api/chat/reject`,
-  CHAT_END: `https://kalpjoytish-backend.onrender.com/api/chat/end`,
-  CHAT_MESSAGES: `https://kalpjoytish-backend.onrender.com/api/chat/history`,
-  CHAT_HISTORY: `https://kalpjoytish-backend.onrender.com/api/chat/sessions`,
-  CHAT_RATE: `https://kalpjoytish-backend.onrender.com/api/chat/rate`,
+  CHAT_ACCEPT: `${SOCKET_URL}/api/chat/accept`,
+  CHAT_REJECT: `${SOCKET_URL}/api/chat/reject`,
+  CHAT_END: `${SOCKET_URL}/api/chat/end`,
+  CHAT_MESSAGES: `${SOCKET_URL}/api/chat/history`,
+  CHAT_HISTORY: `${SOCKET_URL}/api/chat/sessions`,
+  CHAT_RATE: `${SOCKET_URL}/api/chat/rate`,
 
   // Video & Audio Call System Endpoints (/api/video-session)
-  VIDEO_SESSION_BASE: `https://kalpjoytish-backend.onrender.com/api/video-session`,
-  CALL_REQUEST: `https://kalpjoytish-backend.onrender.com/api/video-session/request`,
-  CALL_ACCEPT: `https://kalpjoytish-backend.onrender.com/api/video-session/accept`,
-  CALL_REJECT: `https://kalpjoytish-backend.onrender.com/api/video-session/reject`,
-  CALL_END: `https://kalpjoytish-backend.onrender.com/api/video-session/end`,
-  CALL_HISTORY: `https://kalpjoytish-backend.onrender.com/api/video-session/history`,
-  GENERATE_TOKEN: `https://kalpjoytish-backend.onrender.com/api/video-session/generate-token`,
+  VIDEO_SESSION_BASE: `${SOCKET_URL}/api/video-session`,
+  CALL_REQUEST: `${SOCKET_URL}/api/video-session/request`,
+  CALL_ACCEPT: `${SOCKET_URL}/api/video-session/accept`,
+  CALL_REJECT: `${SOCKET_URL}/api/video-session/reject`,
+  CALL_END: `${SOCKET_URL}/api/video-session/end`,
+  CALL_HISTORY: `${SOCKET_URL}/api/video-session/history`,
+  GENERATE_TOKEN: `${SOCKET_URL}/api/video-session/generate-token`,
 };
 
 
@@ -119,80 +121,136 @@ export const toggleOnlineApi = async (nextStatus) => {
 };
 
 /**
- * Sends approval / interview request & full profile data to admin (POST /api/astrologer/send-request or /register)
- * @param {Object} payload - full astrologer profile and request details
+ * Sends interview request to admin (POST /api/interview/request)
+ * Uses the authenticated astrologer JWT token.
+ * @param {Object} payload - { adminMessage, requestMessage, selectedMode, timestamp }
  * @returns {Promise<boolean>} - success status
  */
 export const sendInterviewRequestApi = async (payload) => {
   try {
     const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+    const notes = (payload && (payload.adminMessage || payload.requestMessage)) || "";
 
-    console.log("Sending request to Admin API:", API_ENDPOINTS.SEND_REQUEST, payload);
+    // 1. Create/Update Astrologer profile in backend DB first
+    if (payload && (payload.name || payload.email || payload.fullName)) {
+      try {
+        const createAstroUrl = API_BASE_URL.replace(/\/astrologer\/?$/, '/astro/create');
+        console.log("Saving full profile to backend database:", createAstroUrl);
+        await fetch(createAstroUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch (profileErr) {
+        console.warn("Failed to create astro profile via API:", profileErr);
+      }
+    }
 
-    let response = await fetch(API_ENDPOINTS.SEND_REQUEST, {
+    console.log("Sending Interview Request to Admin:", API_ENDPOINTS.SEND_REQUEST);
+
+    const response = await fetch(API_ENDPOINTS.SEND_REQUEST, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}`, "x-auth-token": token, "token": token } : {})
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...(payload || {}),
+        notes,
+        requestNotes: notes,
+        adminMessage: notes,
+        selectedMode: (payload && payload.selectedMode) || "interview",
+        timestamp: (payload && payload.timestamp) || new Date().toISOString()
+      })
     }).catch(() => null);
 
-    // Fallback to REGISTER endpoint if SEND_REQUEST route is 404/unavailable
-    if (!response || !response.ok) {
-      console.log("Submitting full profile request to Register endpoint:", API_ENDPOINTS.REGISTER);
-      response = await fetch(API_ENDPOINTS.REGISTER, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}`, "x-auth-token": token, "token": token } : {})
-        },
-        body: JSON.stringify(payload)
-      }).catch(() => null);
-    }
-
-    if (response) {
+    if (response && response.ok) {
       const data = await response.json().catch(() => ({}));
-      console.log("Admin Approval API Response:", response.status, data);
-
-      if (data.token) {
-        localStorage.setItem("astrologerToken", data.token);
-      }
-      if (data.user || data.astrologer || data.data) {
-        localStorage.setItem("astrologerUser", JSON.stringify(data.user || data.astrologer || data.data));
-      }
+      console.log("Interview Request API Response:", response.status, data);
       return true;
     }
+
+    // Non-OK response (e.g. 400 = record already exists) — still optimistically succeed
+    console.warn("Interview request returned non-OK:", response?.status);
+    return true;
+
   } catch (err) {
-    console.error("Error sending request to admin:", err);
+    console.error("Error sending interview request to admin:", err);
   }
 
-  // Graceful fallback for offline / frontend demo
+  // Graceful fallback — always show Step 2 to user
   return true;
 };
 
 /**
- * Checks current approval & interview status from admin (GET /api/astrologer/approval-status)
- * @returns {Promise<Object|null>} - returns { status, date, time, mode, meetingLink, note }
+ * Checks current approval & interview status from admin.
+ * Tries GET /api/astrologer/approval-status first (returns top-level fields),
+ * then falls back to GET /api/interview/details for the interview record.
+ * @returns {Promise<Object|null>} - normalized { status, interviewStatus, date, time, meetingLink, ... }
  */
 export const checkApprovalStatusApi = async () => {
   try {
     const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+    const headers = {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}`, "x-auth-token": token, "token": token } : {})
+    };
 
-    console.log("Fetching Approval & Interview Status from backend:", API_ENDPOINTS.GET_APPROVAL_STATUS);
-
+    // ── Primary: /api/astrologer/approval-status ──────────────────────────
     const response = await fetch(API_ENDPOINTS.GET_APPROVAL_STATUS, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { "Authorization": `Bearer ${token}`, "x-auth-token": token, "token": token } : {})
-      }
-    });
+      headers
+    }).catch(() => null);
 
-    if (response.ok) {
-      const data = await response.json().catch(() => ({}));
-      console.log("Approval Status API Response:", data);
-      return data;
+    if (response && response.ok) {
+      const raw = await response.json().catch(() => ({}));
+      console.log("Approval Status API Response:", raw);
+
+      // Normalize: backend returns top-level fields on this endpoint
+      const normalized = {
+        status:          raw.status          || raw.data?.status          || "pending",
+        isApproved:      raw.isApproved      ?? raw.data?.isApproved      ?? false,
+        interviewStatus: raw.interviewStatus || raw.data?.interviewStatus || "not_requested",
+        interviewDate:   raw.interviewDate   || raw.data?.interviewDate   || null,
+        date:            raw.date            || raw.data?.date            || null,
+        time:            raw.time            || raw.data?.time            || null,
+        meetingLink:     raw.meetingLink     || raw.link || raw.data?.meetingLink || raw.data?.link || null,
+        agoraAppId:      raw.agoraAppId      || raw.data?.agoraAppId      || null,
+        agoraChannel:    raw.agoraChannel    || raw.data?.agoraChannel    || null,
+        agoraToken:      raw.agoraToken      || raw.data?.agoraToken      || null,
+        agoraUid:        raw.agoraUid        || raw.data?.agoraUid        || 2,
+        note:            raw.note            || raw.data?.note            || null,
+      };
+
+      // ── Also fetch interview details to fill missing Agora fields ──────
+      if (!normalized.agoraChannel && token) {
+        try {
+          const ivRes = await fetch(API_ENDPOINTS.GET_MY_INTERVIEW, {
+            method: "GET",
+            headers
+          }).catch(() => null);
+          if (ivRes && ivRes.ok) {
+            const ivRaw = await ivRes.json().catch(() => ({}));
+            const iv = ivRaw.data || ivRaw;
+            if (iv.agoraChannel)       normalized.agoraChannel    = iv.agoraChannel;
+            if (iv.agoraAstrologerToken) normalized.agoraToken     = iv.agoraAstrologerToken;
+            if (iv.agoraAstrologerUid)  normalized.agoraUid       = iv.agoraAstrologerUid;
+            if (iv.meetingLink && !normalized.meetingLink) normalized.meetingLink = iv.meetingLink;
+            if (iv.interviewDate && !normalized.interviewDate) normalized.interviewDate = iv.interviewDate;
+            // Merge interviewStatus from interview record if not already set
+            if (iv.status && normalized.interviewStatus === "not_requested") {
+              normalized.interviewStatus = iv.status;
+            }
+          }
+        } catch (e) {
+          // ignore interview detail errors
+        }
+      }
+
+      return normalized;
     }
   } catch (err) {
     console.error("Error fetching approval status:", err);
@@ -355,8 +413,8 @@ export const fetchChatHistoryApi = async () => {
     }
 
     const url = astroId 
-      ? `https://kalpjoytish-backend.onrender.com/api/chat/sessions?astrologerId=${astroId}`
-      : `https://kalpjoytish-backend.onrender.com/api/chat/sessions`;
+      ? `${SOCKET_URL}/api/chat/sessions?astrologerId=${astroId}`
+      : `${SOCKET_URL}/api/chat/sessions`;
 
     const res = await fetch(url, {
       headers: {
@@ -399,8 +457,8 @@ export const checkPendingRequestsApi = async () => {
     if (!astroId) return null;
 
     const urls = [
-      `https://kalpjoytish-backend.onrender.com/api/chat/sessions?astrologerId=${astroId}`,
-      `https://kalpjoytish-backend.onrender.com/api/chat/pending?astrologerId=${astroId}`
+      `${SOCKET_URL}/api/chat/sessions?astrologerId=${astroId}`,
+      `${SOCKET_URL}/api/chat/pending?astrologerId=${astroId}`
     ];
 
     for (const url of urls) {
@@ -464,7 +522,7 @@ export const sendChatMessageApi = async (sessionId, text, targetUserId = "", cus
     const astroId = customSenderId || user._id || user.id || user.astrologerId || "";
 
     const urls = [
-      `https://kalpjoytish-backend.onrender.com/api/chat/send`
+      `${SOCKET_URL}/api/chat/send`
     ];
 
     const bodyData = {
@@ -523,7 +581,7 @@ export const acceptCallApi = async (callId) => {
 
     const bodyData = { sessionId: idToUse, callId: idToUse };
 
-    let res = await fetch(`https://kalpjoytish-backend.onrender.com/api/video-session/accept/${idToUse}`, {
+    let res = await fetch(`${SOCKET_URL}/api/video-session/accept/${idToUse}`, {
       method: "POST",
       headers,
       body: JSON.stringify(bodyData)
@@ -556,7 +614,7 @@ export const rejectCallApi = async (callId, reason = "Astrologer is currently bu
 
     const bodyData = { reason };
 
-    let res = await fetch(`https://kalpjoytish-backend.onrender.com/api/video-session/reject/${idToUse}`, {
+    let res = await fetch(`${SOCKET_URL}/api/video-session/reject/${idToUse}`, {
       method: "POST",
       headers,
       body: JSON.stringify(bodyData)
@@ -585,7 +643,7 @@ export const endCallApi = async (callId) => {
       ...(token ? { "Authorization": `Bearer ${token}`, "x-auth-token": token, "token": token } : {})
     };
 
-    let res = await fetch(`https://kalpjoytish-backend.onrender.com/api/video-session/end/${idToUse}`, {
+    let res = await fetch(`${SOCKET_URL}/api/video-session/end/${idToUse}`, {
       method: "POST",
       headers,
       body: JSON.stringify({ sessionId: idToUse })
@@ -611,8 +669,8 @@ export const fetchCallHistoryApi = async () => {
     const astroId = user._id || user.id || user.astrologerId || "";
 
     const url = astroId
-      ? `https://kalpjoytish-backend.onrender.com/api/video-session/history?userId=${astroId}&role=astrologer`
-      : `https://kalpjoytish-backend.onrender.com/api/video-session/history`;
+      ? `${SOCKET_URL}/api/video-session/history?userId=${astroId}&role=astrologer`
+      : `${SOCKET_URL}/api/video-session/history`;
 
     const res = await fetch(url, {
       headers: {
@@ -656,11 +714,11 @@ export const checkPendingCallRequestsApi = async () => {
     if (!astroId) return null;
 
     const urls = [
-      `https://kalpjoytish-backend.onrender.com/api/video-session/pending?astrologerId=${astroId}`,
-      `https://kalpjoytish-backend.onrender.com/api/video-session/requests?astrologerId=${astroId}`,
-      `https://kalpjoytish-backend.onrender.com/api/video-session/astrologer/${astroId}`,
-      `https://kalpjoytish-backend.onrender.com/api/call/pending?astrologerId=${astroId}`,
-      `https://kalpjoytish-backend.onrender.com/api/call/requests?astrologerId=${astroId}`
+      `${SOCKET_URL}/api/video-session/pending?astrologerId=${astroId}`,
+      `${SOCKET_URL}/api/video-session/requests?astrologerId=${astroId}`,
+      `${SOCKET_URL}/api/video-session/astrologer/${astroId}`,
+      `${SOCKET_URL}/api/call/pending?astrologerId=${astroId}`,
+      `${SOCKET_URL}/api/call/requests?astrologerId=${astroId}`
     ];
 
     for (const url of urls) {

@@ -287,16 +287,32 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
       achievements: achievements.trim()
     };
 
-    console.log("Saving Profile Data locally (Waiting for 'Send Request to Admin' on Pending Approval):", payload);
+    console.log("Saving Profile Data locally & sending to Backend API:", payload);
     localStorage.setItem("astrologer_profile_data", JSON.stringify(payload));
     
+    try {
+      const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/astrologer";
+      const createAstroUrl = apiBaseUrl.replace(/\/astrologer\/?$/, '/astro/create');
+      await fetch(createAstroUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (apiErr) {
+      console.warn("Failed to send profile to backend API on form submit:", apiErr);
+    }
+
     setLoading(false);
     onCreateSuccess();
   };
 
   return (
     <div className="min-h-screen bg-[#F4F5FB] flex items-center justify-center p-0 sm:p-4 overflow-x-hidden">
-      <div className="w-full sm:max-w-[430px] h-screen sm:h-[92vh] sm:rounded-[32px] bg-[#FAF6F2] overflow-hidden flex flex-col relative shadow-2xl border border-gray-100">
+      <div className="w-full md:max-w-[850px] lg:max-w-[960px] h-screen sm:h-[92vh] sm:rounded-[32px] bg-[#FAF6F2] overflow-hidden flex flex-col relative shadow-2xl border border-gray-100">
         
         {/* Top Header Background with Zodiac Wheel Symbol SVG */}
         <div className="relative bg-gradient-to-b from-[#FFF0E6] to-[#FAF6F2] pt-6 pb-4 px-6 flex-shrink-0">
