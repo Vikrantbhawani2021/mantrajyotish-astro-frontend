@@ -44,7 +44,9 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
   const [emailAddress, setEmailAddress] = useState(savedDraft.emailAddress || "");
   const [location, setLocation] = useState(savedDraft.location || "");
   const [password, setPassword] = useState(savedDraft.password || "");
+  const [confirmPassword, setConfirmPassword] = useState(savedDraft.confirmPassword || "");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Form states - Step 2 (About You)
   const [introduction, setIntroduction] = useState(savedDraft.introduction || "");
@@ -249,12 +251,16 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
   // Validation before going to next step
   const handleNext = () => {
     if (step === 1) {
-      if (!fullName.trim() || !mobileNumber.trim() || !emailAddress.trim() || !location.trim() || !password.trim()) {
-        alert("Please fill all required basic information fields (Full Name, Mobile, Email, Location, Password).");
+      if (!fullName.trim() || !mobileNumber.trim() || !emailAddress.trim() || !location.trim() || !password.trim() || !confirmPassword.trim()) {
+        alert("Please fill all required basic information fields (Full Name, Mobile, Email, Location, Password, Confirm Password).");
         return;
       }
       if (mobileNumber.length !== 10) {
         alert("Please enter a valid 10-digit mobile number.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        alert("Password and Confirm Password do not match. Please check your password.");
         return;
       }
       setStep(2);
@@ -558,6 +564,25 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
                       className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer ml-2 flex-shrink-0"
                     >
                       {showPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+                    </button>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
+                    <Lock className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                    <input 
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm Password *"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full tracking-wider"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer ml-2 flex-shrink-0"
+                    >
+                      {showConfirmPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
                     </button>
                   </div>
                 </div>
