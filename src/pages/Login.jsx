@@ -45,9 +45,12 @@ export default function Login({ onLoginSuccess, onNavigateToSignup, onNavigateTo
     try {
 
       // Payload handles phone, email, or credential field
-      const payload = isNumeric 
-        ? { phone: inputVal, password: password } 
-        : { email: inputVal, password: password };
+      const payload = {
+        email: isNumeric ? "" : inputVal.toLowerCase(),
+        phone: isNumeric ? inputVal : "",
+        identifier: inputVal,
+        password: password
+      };
 
       const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: "POST",
