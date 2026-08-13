@@ -96,6 +96,37 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
   const [showApproachDropdown, setShowApproachDropdown] = useState(false);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
 
+  // Global Click-Outside & Escape Key listener to close all dropdowns
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      if (!e.target.closest(".custom-dropdown-container")) {
+        setShowExpDropdownStep2(false);
+        setShowExpDropdownStep3(false);
+        setShowApproachDropdown(false);
+        setShowLangDropdown(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setShowExpDropdownStep2(false);
+        setShowExpDropdownStep3(false);
+        setShowApproachDropdown(false);
+        setShowLangDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    document.addEventListener("touchstart", handleDocumentClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+      document.removeEventListener("touchstart", handleDocumentClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   // Options
   const experienceOptions = [
     "Less than 1 Year",
@@ -566,7 +597,7 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 relative">
+                <div className="flex flex-col gap-1.5 relative custom-dropdown-container">
                   <label className="text-[13px] font-bold text-gray-700">
                     Years of Experience <span className="text-[#ff7448]">*</span>
                   </label>
@@ -629,7 +660,7 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 relative">
+                <div className="flex flex-col gap-1.5 relative custom-dropdown-container">
                   <label className="text-[13px] font-bold text-gray-700">
                     My Approach
                   </label>
@@ -684,7 +715,7 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 relative">
+                <div className="flex flex-col gap-1.5 relative custom-dropdown-container">
                   <label className="text-[13px] font-bold text-gray-700">
                     Languages you speak <span className="text-[#ff7448]">*</span>
                   </label>
@@ -800,7 +831,7 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 relative">
+                <div className="flex flex-col gap-1.5 relative custom-dropdown-container">
                   <label className="text-[13px] font-bold text-gray-700">
                     Years of Experience in Astrology <span className="text-[#ff7448]">*</span>
                   </label>
