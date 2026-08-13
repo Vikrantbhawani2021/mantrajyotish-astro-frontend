@@ -350,42 +350,45 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
         </div>
 
         {/* Multi-step progress bar (4 Steps) */}
-        <div className="px-6 py-2 flex items-center justify-between relative z-10 mb-2 flex-shrink-0">
-          <div className="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-[2px] bg-gray-200 -z-10">
+        <div className="px-8 py-3 relative z-10 mb-4 flex-shrink-0">
+          {/* Progress connecting line - aligned to exact center of w-9 h-9 circles (18px from top) */}
+          <div className="absolute left-12 right-12 top-[30px] -translate-y-1/2 h-[2px] bg-gray-200 z-0">
             <div 
               className="h-full bg-[#ff7448] transition-all duration-300"
               style={{ width: `${((step - 1) / 3) * 100}%` }}
             />
           </div>
           
-          {[
-            { num: 1, label: "Basic Info" },
-            { num: 2, label: "About You" },
-            { num: 3, label: "Expertise" },
-            { num: 4, label: "Preview" }
-          ].map((s) => {
-            const isActive = step >= s.num;
-            const isCompleted = step > s.num;
-            const isCurrent = step === s.num;
-            return (
-              <div key={s.num} className="flex flex-col items-center gap-1.5 relative">
-                <div 
-                  className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[14px] transition-all duration-300 ${
-                    isCurrent 
-                      ? "bg-[#ff7448] text-white shadow-md shadow-[#ff7448]/30 scale-105" 
-                      : isCompleted 
-                        ? "bg-[#ff7448] text-white" 
-                        : "bg-white text-gray-400 border border-gray-200"
-                  }`}
-                >
-                  {isCompleted ? <Check className="w-4.5 h-4.5 stroke-[3]" /> : s.num}
+          <div className="flex items-center justify-between relative z-10">
+            {[
+              { num: 1, label: "Basic Info" },
+              { num: 2, label: "About You" },
+              { num: 3, label: "Expertise" },
+              { num: 4, label: "Preview" }
+            ].map((s) => {
+              const isActive = step >= s.num;
+              const isCompleted = step > s.num;
+              const isCurrent = step === s.num;
+              return (
+                <div key={s.num} className="flex flex-col items-center gap-1.5 min-w-[70px]">
+                  <div 
+                    className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300 z-10 ${
+                      isCurrent 
+                        ? "bg-[#ff7448] text-white shadow-md shadow-[#ff7448]/30 scale-110" 
+                        : isCompleted 
+                          ? "bg-[#ff7448] text-white" 
+                          : "bg-white text-gray-400 border border-gray-200 shadow-xs"
+                    }`}
+                  >
+                    {isCompleted ? <Check className="w-4.5 h-4.5 stroke-[3]" /> : s.num}
+                  </div>
+                  <span className={`text-[11px] font-bold text-center whitespace-nowrap transition-all duration-300 ${isActive ? "text-[#ff7448]" : "text-gray-400"}`}>
+                    {s.label}
+                  </span>
                 </div>
-                <span className={`text-[11px] font-bold transition-all duration-300 ${isActive ? "text-[#ff7448]" : "text-gray-400"}`}>
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Scrollable Content Container */}
