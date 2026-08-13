@@ -39,6 +39,15 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
   // Form states
   const [selectedDate, setSelectedDate] = useState(localStorage.getItem(LS_KEY_DATE) || "");
   const [selectedTime, setSelectedTime] = useState(localStorage.getItem(LS_KEY_TIME) || "");
+
+  // Preferred Availability Slots (Astrologer selects 1 or 2 options for Admin)
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const dayAfter = new Date(Date.now() + 172800000).toISOString().split('T')[0];
+  const [preferredDate1, setPreferredDate1] = useState(tomorrow);
+  const [preferredTime1, setPreferredTime1] = useState("11:00");
+  const [preferredDate2, setPreferredDate2] = useState(dayAfter);
+  const [preferredTime2, setPreferredTime2] = useState("16:00");
+
   const [selectedMode, setSelectedMode] = useState("interview");
   const [message, setMessage] = useState("Hello Team,\nI am available on the above selected date and time. Please confirm.\nThank you!");
   const [copied, setCopied] = useState(false);
@@ -226,12 +235,18 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
         if (rawData) savedProfile = JSON.parse(rawData);
       } catch (e) {}
 
+      const preferredSlots = [
+        { date: preferredDate1, time: preferredTime1 },
+        ...(preferredDate2 && preferredTime2 ? [{ date: preferredDate2, time: preferredTime2 }] : [])
+      ];
+
       const fullPayload = {
         ...savedProfile,
+        preferredSlots,
         adminMessage: message,
         requestMessage: message,
-        selectedDate,
-        selectedTime,
+        selectedDate: preferredDate1,
+        selectedTime: preferredTime1,
         selectedMode,
         timestamp: new Date().toISOString()
       };
@@ -386,6 +401,72 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
                   <div>
                     <h3 className="text-[16.5px] font-bold text-gray-800 leading-tight">Interview Request</h3>
                     <p className="text-[11.5px] text-gray-400 font-medium mt-0.5">Submit request to admin for interview slot</p>
+                  </div>
+                </div>
+
+                {/* Preferred Availability Slots (Astrologer selects 1 or 2 options) */}
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] font-extrabold text-gray-800">Your Preferred Interview Time Slots</label>
+                    <span className="text-[10.5px] font-bold text-[#ff7448]">Select 1 or 2 slots</span>
+                  </div>
+
+                  {/* Slot 1 */}
+                  <div className="bg-gray-50/90 border border-gray-200/90 rounded-[16px] p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold text-[#ff7448] uppercase tracking-wider">Option 1 (Primary Slot) *</span>
+                      <span className="text-[10px] font-bold text-gray-400">First Choice</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <input 
+                          type="date"
+                          required
+                          value={preferredDate1}
+                          onChange={(e) => setPreferredDate1(e.target.value)}
+                          className="w-full text-xs font-bold text-gray-800 bg-transparent outline-none cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <input 
+                          type="time"
+                          required
+                          value={preferredTime1}
+                          onChange={(e) => setPreferredTime1(e.target.value)}
+                          className="w-full text-xs font-bold text-gray-800 bg-transparent outline-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Slot 2 (Optional) */}
+                  <div className="bg-gray-50/90 border border-gray-200/90 rounded-[16px] p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">Option 2 (Alternate Slot - Optional)</span>
+                      <span className="text-[10px] font-bold text-gray-400">Backup Choice</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <input 
+                          type="date"
+                          value={preferredDate2}
+                          onChange={(e) => setPreferredDate2(e.target.value)}
+                          className="w-full text-xs font-bold text-gray-800 bg-transparent outline-none cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <input 
+                          type="time"
+                          value={preferredTime2}
+                          onChange={(e) => setPreferredTime2(e.target.value)}
+                          className="w-full text-xs font-bold text-gray-800 bg-transparent outline-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
