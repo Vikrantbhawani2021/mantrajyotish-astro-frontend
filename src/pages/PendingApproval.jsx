@@ -410,14 +410,14 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
                   </div>
 
                   {/* Slot 1 */}
-                  <div className="bg-gray-50/90 border border-gray-200/90 rounded-[16px] p-3 flex flex-col gap-2">
+                  <div className="bg-gray-50/90 border border-gray-200/90 rounded-[16px] p-3 sm:p-3.5 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-extrabold text-[#ff7448] uppercase tracking-wider">Option 1 (Primary Slot) *</span>
                       <span className="text-[10px] font-bold text-gray-400">First Choice</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
-                        <Calendar className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-[#ff7448] transition-all">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-2.5 flex-shrink-0" />
                         <input 
                           type="date"
                           required
@@ -426,8 +426,8 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
                           className="w-full text-xs font-bold text-gray-800 bg-transparent outline-none cursor-pointer"
                         />
                       </div>
-                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
-                        <Clock className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-[#ff7448] transition-all">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2.5 flex-shrink-0" />
                         <input 
                           type="time"
                           required
@@ -440,14 +440,14 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
                   </div>
 
                   {/* Slot 2 (Optional) */}
-                  <div className="bg-gray-50/90 border border-gray-200/90 rounded-[16px] p-3 flex flex-col gap-2">
+                  <div className="bg-gray-50/90 border border-gray-200/90 rounded-[16px] p-3 sm:p-3.5 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-extrabold text-gray-500 uppercase tracking-wider">Option 2 (Alternate Slot - Optional)</span>
                       <span className="text-[10px] font-bold text-gray-400">Backup Choice</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
-                        <Calendar className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-[#ff7448] transition-all">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-2.5 flex-shrink-0" />
                         <input 
                           type="date"
                           value={preferredDate2}
@@ -455,8 +455,8 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
                           className="w-full text-xs font-bold text-gray-800 bg-transparent outline-none cursor-pointer"
                         />
                       </div>
-                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#ff7448] transition-all">
-                        <Clock className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                      <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-[#ff7448] transition-all">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2.5 flex-shrink-0" />
                         <input 
                           type="time"
                           value={preferredTime2}
