@@ -18,11 +18,8 @@ function ProtectedRoute({ children }) {
   if (userRaw) {
     try {
       const user = JSON.parse(userRaw);
+      // If status is not approved, always send them to pending-approval screen to view interview & meeting link
       if (user.status !== "approved" && !user.isVerified) {
-        const profileDraft = localStorage.getItem("astrologer_profile_data") || localStorage.getItem("astrologer_profile_draft");
-        if (!profileDraft && !user.name) {
-          return <Navigate to="/create-profile" replace />;
-        }
         return <Navigate to="/pending-approval" replace />;
       }
     } catch (e) {

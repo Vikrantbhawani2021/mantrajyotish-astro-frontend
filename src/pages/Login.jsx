@@ -62,13 +62,14 @@ export default function Login({ onLoginSuccess, onNavigateToSignup, onNavigateTo
 
       const data = await response.json();
 
-      if (response.ok && (data.success || data.token || data.status === "success" || data.user || data.data)) {
+      if (response.ok && (data.success || data.token || data.status === "success" || data.user || data.data || data.astrologer)) {
         // Store auth token or user details if returned
         if (data.token) {
           localStorage.setItem("astrologerToken", data.token);
         }
-        if (data.user || data.data) {
-          localStorage.setItem("astrologerUser", JSON.stringify(data.user || data.data));
+        const userObj = data.astrologer || data.user || data.data;
+        if (userObj) {
+          localStorage.setItem("astrologerUser", JSON.stringify(userObj));
         }
         onLoginSuccess();
       } else {
