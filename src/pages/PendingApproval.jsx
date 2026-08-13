@@ -40,13 +40,11 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
   const [selectedDate, setSelectedDate] = useState(localStorage.getItem(LS_KEY_DATE) || "");
   const [selectedTime, setSelectedTime] = useState(localStorage.getItem(LS_KEY_TIME) || "");
 
-  // Preferred Availability Slots (Astrologer selects 1 or 2 options for Admin)
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-  const dayAfter = new Date(Date.now() + 172800000).toISOString().split('T')[0];
-  const [preferredDate1, setPreferredDate1] = useState(tomorrow);
-  const [preferredTime1, setPreferredTime1] = useState("11:00");
-  const [preferredDate2, setPreferredDate2] = useState(dayAfter);
-  const [preferredTime2, setPreferredTime2] = useState("16:00");
+  // Preferred Availability Slots (Astrologer fills 1 or 2 options for Admin)
+  const [preferredDate1, setPreferredDate1] = useState("");
+  const [preferredTime1, setPreferredTime1] = useState("");
+  const [preferredDate2, setPreferredDate2] = useState("");
+  const [preferredTime2, setPreferredTime2] = useState("");
 
   const [selectedMode, setSelectedMode] = useState("interview");
   const [message, setMessage] = useState("Hello Team,\nI am available on the above selected date and time. Please confirm.\nThank you!");
@@ -236,7 +234,7 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
       } catch (e) {}
 
       const preferredSlots = [
-        { date: preferredDate1, time: preferredTime1 },
+        ...(preferredDate1 && preferredTime1 ? [{ date: preferredDate1, time: preferredTime1 }] : []),
         ...(preferredDate2 && preferredTime2 ? [{ date: preferredDate2, time: preferredTime2 }] : [])
       ];
 
