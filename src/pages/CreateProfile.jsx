@@ -48,6 +48,9 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Field validation errors state (no ugly browser alert popups)
+  const [errors, setErrors] = useState({});
+
   // Form states - Step 2 (About You)
   const [introduction, setIntroduction] = useState(savedDraft.introduction || "");
   const [experience, setExperience] = useState(savedDraft.experience || "");
@@ -251,36 +254,54 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
   // Validation before going to next step
   const handleNext = () => {
     if (step === 1) {
-      if (!fullName.trim() || !mobileNumber.trim() || !emailAddress.trim() || !location.trim() || !password.trim() || !confirmPassword.trim()) {
-        alert("Please fill all required basic information fields (Full Name, Mobile, Email, Location, Password, Confirm Password).");
+      const errs = {};
+      if (!fullName.trim()) errs.fullName = "Full name is required.";
+      if (!mobileNumber.trim()) {
+        errs.mobileNumber = "Mobile number is required.";
+      } else if (mobileNumber.length !== 10) {
+        errs.mobileNumber = "Please enter a valid 10-digit mobile number.";
+      }
+
+      if (!emailAddress.trim()) {
+        errs.emailAddress = "Email address is required.";
+      } else if (!emailAddress.includes("@") || !emailAddress.includes(".")) {
+        errs.emailAddress = "Please enter a valid email address.";
+      }
+
+      if (!location.trim()) errs.location = "Location is required.";
+
+      if (!password) {
+        errs.password = "Password is required.";
+      } else if (password.length < 8) {
+        errs.password = "Password must be at least 8 characters long.";
+      }
+
+      if (!confirmPassword) {
+        errs.confirmPassword = "Please confirm your password.";
+      } else if (password !== confirmPassword) {
+        errs.confirmPassword = "Passwords do not match.";
+      }
+
+      if (Object.keys(errs).length > 0) {
+        setErrors(errs);
         return;
       }
-      if (mobileNumber.length !== 10) {
-        alert("Please enter a valid 10-digit mobile number.");
-        return;
-      }
-      if (password !== confirmPassword) {
-        alert("Password and Confirm Password do not match. Please check your password.");
-        return;
-      }
+
+      setErrors({});
       setStep(2);
     } else if (step === 2) {
-      if (!introduction.trim()) {
-        alert("Please enter a short introduction.");
+      const errs = {};
+      if (!introduction.trim()) errs.introduction = "Please enter a short introduction.";
+      if (!experience) errs.experience = "Please select your years of experience.";
+      if (!motivation.trim()) errs.motivation = "Please share your motivation for helping people.";
+      if (languages.length === 0) errs.languages = "Please select at least one language you speak.";
+
+      if (Object.keys(errs).length > 0) {
+        setErrors(errs);
         return;
       }
-      if (!experience) {
-        alert("Please select your years of experience.");
-        return;
-      }
-      if (!motivation.trim()) {
-        alert("Please share your motivation for helping people.");
-        return;
-      }
-      if (languages.length === 0) {
-        alert("Please select at least one language you speak.");
-        return;
-      }
+
+      setErrors({});
       setStep(3);
     } else if (step === 3) {
       if (selectedSpecializations.length === 0) {
@@ -495,95 +516,141 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
 
                 <div className="flex flex-col gap-3.5">
                   {/* Full Name */}
-                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
-                    <User className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
-                    <input 
-                      type="text"
-                      placeholder="Full Name *"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
-                    />
+                  <div>
+                    <div className={`relative flex items-center bg-gray-50/70 border ${errors.fullName ? "border-rose-500 bg-rose-50/20" : "border-gray-200/90"} rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all`}>
+                      <User className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                      <input 
+                        type="text"
+                        placeholder="Full Name *"
+                        value={fullName}
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          if (errors.fullName) setErrors(prev => ({ ...prev, fullName: null }));
+                        }}
+                        className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
+                      />
+                    </div>
+                    {errors.fullName && <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ {errors.fullName}</p>}
                   </div>
 
                   {/* Mobile Number */}
-                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
-                    <Phone className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
-                    <input 
-                      type="text"
-                      maxLength={10}
-                      placeholder="Mobile Number *"
-                      value={mobileNumber}
-                      onChange={handleMobileChange}
-                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
-                    />
-                    {mobileNumber.length > 0 && (
-                      <span className="text-[11px] font-bold text-gray-400">
-                        {mobileNumber.length}/10
-                      </span>
-                    )}
+                  <div>
+                    <div className={`relative flex items-center bg-gray-50/70 border ${errors.mobileNumber ? "border-rose-500 bg-rose-50/20" : "border-gray-200/90"} rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all`}>
+                      <Phone className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                      <input 
+                        type="text"
+                        maxLength={10}
+                        placeholder="Mobile Number *"
+                        value={mobileNumber}
+                        onChange={(e) => {
+                          handleMobileChange(e);
+                          if (errors.mobileNumber) setErrors(prev => ({ ...prev, mobileNumber: null }));
+                        }}
+                        className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
+                      />
+                      {mobileNumber.length > 0 && (
+                        <span className="text-[11px] font-bold text-gray-400">
+                          {mobileNumber.length}/10
+                        </span>
+                      )}
+                    </div>
+                    {errors.mobileNumber && <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ {errors.mobileNumber}</p>}
                   </div>
 
                   {/* Email Address */}
-                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
-                    <Mail className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
-                    <input 
-                      type="email"
-                      placeholder="Email Address *"
-                      value={emailAddress}
-                      onChange={(e) => setEmailAddress(e.target.value)}
-                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
-                    />
+                  <div>
+                    <div className={`relative flex items-center bg-gray-50/70 border ${errors.emailAddress ? "border-rose-500 bg-rose-50/20" : "border-gray-200/90"} rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all`}>
+                      <Mail className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                      <input 
+                        type="email"
+                        placeholder="Email Address *"
+                        value={emailAddress}
+                        onChange={(e) => {
+                          setEmailAddress(e.target.value);
+                          if (errors.emailAddress) setErrors(prev => ({ ...prev, emailAddress: null }));
+                        }}
+                        className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
+                      />
+                    </div>
+                    {errors.emailAddress && <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ {errors.emailAddress}</p>}
                   </div>
 
                   {/* Location */}
-                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
-                    <MapPin className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
-                    <input 
-                      type="text"
-                      placeholder="Location (City, Country) *"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
-                    />
+                  <div>
+                    <div className={`relative flex items-center bg-gray-50/70 border ${errors.location ? "border-rose-500 bg-rose-50/20" : "border-gray-200/90"} rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all`}>
+                      <MapPin className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                      <input 
+                        type="text"
+                        placeholder="Location (City, Country) *"
+                        value={location}
+                        onChange={(e) => {
+                          setLocation(e.target.value);
+                          if (errors.location) setErrors(prev => ({ ...prev, location: null }));
+                        }}
+                        className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full"
+                      />
+                    </div>
+                    {errors.location && <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ {errors.location}</p>}
                   </div>
 
-                  {/* Password */}
-                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
-                    <Lock className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
-                    <input 
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Create Password *"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full tracking-wider"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer ml-2 flex-shrink-0"
-                    >
-                      {showPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
-                    </button>
+                  {/* Password (Minimum 8 chars) */}
+                  <div>
+                    <div className={`relative flex items-center bg-gray-50/70 border ${errors.password || (password && password.length < 8) ? "border-rose-500 bg-rose-50/20" : "border-gray-200/90"} rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all`}>
+                      <Lock className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                      <input 
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create Password (Min. 8 characters) *"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+                        }}
+                        className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full tracking-wider"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer ml-2 flex-shrink-0"
+                      >
+                        {showPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+                      </button>
+                    </div>
+                    {password.length > 0 && password.length < 8 && (
+                      <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ Password must be at least 8 characters long ({password.length}/8)</p>
+                    )}
+                    {errors.password && password.length === 0 && (
+                      <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ {errors.password}</p>
+                    )}
                   </div>
 
                   {/* Confirm Password */}
-                  <div className="relative flex items-center bg-gray-50/70 border border-gray-200/90 rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all">
-                    <Lock className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
-                    <input 
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm Password *"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full tracking-wider"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer ml-2 flex-shrink-0"
-                    >
-                      {showConfirmPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
-                    </button>
+                  <div>
+                    <div className={`relative flex items-center bg-gray-50/70 border ${errors.confirmPassword || (confirmPassword && password !== confirmPassword) ? "border-rose-500 bg-rose-50/20" : "border-gray-200/90"} rounded-[16px] px-4 h-[52px] focus-within:border-[#ff7448] focus-within:bg-white transition-all`}>
+                      <Lock className="w-4.5 h-4.5 text-gray-400 mr-3 flex-shrink-0" />
+                      <input 
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm Password *"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: null }));
+                        }}
+                        className="bg-transparent text-gray-800 placeholder-gray-400 text-[13.5px] font-medium focus:outline-none flex-1 h-full tracking-wider"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer ml-2 flex-shrink-0"
+                      >
+                        {showConfirmPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+                      </button>
+                    </div>
+                    {confirmPassword.length > 0 && password !== confirmPassword && (
+                      <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ Passwords do not match</p>
+                    )}
+                    {errors.confirmPassword && !confirmPassword && (
+                      <p className="text-[11.5px] font-bold text-rose-500 pl-2 mt-1">⚠️ {errors.confirmPassword}</p>
+                    )}
                   </div>
                 </div>
 
