@@ -372,6 +372,9 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
       if (data.astrologer || data.user) {
         localStorage.setItem("astrologerUser", JSON.stringify(data.astrologer || data.user));
       }
+      // Clear old session flags for new registration
+      localStorage.removeItem("astrologer_pending_view");
+      localStorage.removeItem("astrologer_request_sent");
     } catch (apiErr) {
       console.warn("Failed to send profile to backend API on form submit:", apiErr);
     }
