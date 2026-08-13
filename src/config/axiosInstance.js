@@ -2,9 +2,10 @@ import axios from "axios";
 
 /**
  * Production Centralized Axios Instance for Astrologer Frontend.
- * Reads base URL purely from VITE_SOCKET_URL / VITE_API_BASE_URL environment variable.
+ * Reads single backend URL from VITE_BACKEND_URL in .env
  */
-const baseURL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || "";
+const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://mantrajyotish-backend.vercel.app";
+const baseURL = backendUrl.replace(/\/$/, "");
 
 const api = axios.create({
   baseURL,

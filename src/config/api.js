@@ -1,9 +1,11 @@
 import api from "./axiosInstance";
 
-export const API_BASE_URL = import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL}/api/astrologer` : (import.meta.env.VITE_API_BASE_URL || "");
-export const UPLOAD_IMAGE_URL = import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL}/api/upload/image` : (import.meta.env.VITE_UPLOAD_IMAGE_URL || "");
-export const TOGGLE_ONLINE_URL = import.meta.env.VITE_SOCKET_URL ? `${import.meta.env.VITE_SOCKET_URL}/api/astro/toggle-online` : (import.meta.env.VITE_TOGGLE_ONLINE_URL || "");
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || "";
+export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://mantrajyotish-backend.vercel.app").replace(/\/$/, "");
+
+export const API_BASE_URL = `${BACKEND_URL}/api/astrologer`;
+export const UPLOAD_IMAGE_URL = `${BACKEND_URL}/api/upload/image`;
+export const TOGGLE_ONLINE_URL = `${BACKEND_URL}/api/astro/toggle-online`;
+export const SOCKET_URL = BACKEND_URL;
 
 export const API_ENDPOINTS = {
   REGISTER: `/api/astrologer/register`,
