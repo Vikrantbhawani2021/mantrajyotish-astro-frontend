@@ -163,8 +163,7 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
         const isSent =
           interviewStatus === "requested" ||
           interviewStatus === "pending" ||
-          interviewStatus === "sent" ||
-          localStorage.getItem(LS_KEY_SENT) === "true";
+          interviewStatus === "sent";
 
         if (isSent) {
           updateViewState("sent");

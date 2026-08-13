@@ -244,8 +244,8 @@ export const checkApprovalStatusApi = async () => {
             if (iv.agoraAstrologerUid)  normalized.agoraUid       = iv.agoraAstrologerUid;
             if (iv.meetingLink && !normalized.meetingLink) normalized.meetingLink = iv.meetingLink;
             if (iv.interviewDate && !normalized.interviewDate) normalized.interviewDate = iv.interviewDate;
-            // Merge interviewStatus from interview record if not already set
-            if (iv.status && normalized.interviewStatus === "not_requested") {
+            // Merge interviewStatus from interview record (overwriting stale or fallback values)
+            if (iv.status) {
               normalized.interviewStatus = iv.status;
             }
           }
