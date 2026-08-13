@@ -26,6 +26,15 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef(null);
   const certInputRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  // Scroll to top of container whenever step changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, [step]);
 
   const [profilePhoto, setProfilePhoto] = useState(savedDraft.profilePhoto || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -392,7 +401,7 @@ export default function CreateProfile({ onCreateSuccess, onBack }) {
         </div>
 
         {/* Scrollable Content Container */}
-        <div className="flex-1 overflow-y-auto px-5 pb-32 no-scrollbar">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 pb-32 no-scrollbar">
           <div className="bg-white rounded-[24px] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-gray-100/50 flex flex-col gap-6">
 
             {/* STEP 1: BASIC INFO */}
