@@ -170,8 +170,9 @@ export default function ActiveChatModal({ session, onClose }) {
 
         try {
           const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+          const backendBase = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "https://mantrajyotish-backend.vercel.app").replace(/\/$/, "").replace(/\/api$/, "");
           const urls = [
-            `https://mantrajyotish-backend.vercel.app/api/chat/details/${sessionId}`
+            `${backendBase}/api/chat/details/${sessionId}`
           ];
 
           for (const url of urls) {
