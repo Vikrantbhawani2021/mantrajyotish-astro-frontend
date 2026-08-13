@@ -8,32 +8,32 @@ export const TOGGLE_ONLINE_URL = `${BACKEND_URL}/api/astro/toggle-online`;
 export const SOCKET_URL = BACKEND_URL;
 
 export const API_ENDPOINTS = {
-  REGISTER: `/api/astrologer/register`,
-  LOGIN: `/api/astrologer/login`,
-  SEND_OTP: `/api/astrologer/forgot-password/send-otp`,
-  RESET_PASSWORD: `/api/astrologer/forgot-password/reset`,
-  UPLOAD_IMAGE: `/api/upload/image`,
-  TOGGLE_ONLINE: `/api/astro/toggle-online`,
+  REGISTER: `${BACKEND_URL}/api/astrologer/register`,
+  LOGIN: `${BACKEND_URL}/api/astrologer/login`,
+  SEND_OTP: `${BACKEND_URL}/api/astrologer/forgot-password/send-otp`,
+  RESET_PASSWORD: `${BACKEND_URL}/api/astrologer/forgot-password/reset`,
+  UPLOAD_IMAGE: `${BACKEND_URL}/api/upload/image`,
+  TOGGLE_ONLINE: `${BACKEND_URL}/api/astro/toggle-online`,
   // Interview flow
-  SEND_REQUEST: `/api/interview/request`,
-  GET_APPROVAL_STATUS: `/api/astrologer/approval-status`,
-  GET_MY_INTERVIEW: `/api/interview/details`,
+  SEND_REQUEST: `${BACKEND_URL}/api/interview/request`,
+  GET_APPROVAL_STATUS: `${BACKEND_URL}/api/astrologer/approval-status`,
+  GET_MY_INTERVIEW: `${BACKEND_URL}/api/interview/details`,
   // Live Chat System Endpoints
-  CHAT_ACCEPT: `/api/chat/accept`,
-  CHAT_REJECT: `/api/chat/reject`,
-  CHAT_END: `/api/chat/end`,
-  CHAT_MESSAGES: `/api/chat/history`,
-  CHAT_HISTORY: `/api/chat/sessions`,
-  CHAT_RATE: `/api/chat/rate`,
+  CHAT_ACCEPT: `${BACKEND_URL}/api/chat/accept`,
+  CHAT_REJECT: `${BACKEND_URL}/api/chat/reject`,
+  CHAT_END: `${BACKEND_URL}/api/chat/end`,
+  CHAT_MESSAGES: `${BACKEND_URL}/api/chat/history`,
+  CHAT_HISTORY: `${BACKEND_URL}/api/chat/sessions`,
+  CHAT_RATE: `${BACKEND_URL}/api/chat/rate`,
 
   // Video & Audio Call System Endpoints (/api/video-session)
-  VIDEO_SESSION_BASE: `/api/video-session`,
-  CALL_REQUEST: `/api/video-session/request`,
-  CALL_ACCEPT: `/api/video-session/accept`,
-  CALL_REJECT: `/api/video-session/reject`,
-  CALL_END: `/api/video-session/end`,
-  CALL_HISTORY: `/api/video-session/history`,
-  GENERATE_TOKEN: `/api/video-session/generate-token`,
+  VIDEO_SESSION_BASE: `${BACKEND_URL}/api/video-session`,
+  CALL_REQUEST: `${BACKEND_URL}/api/video-session/request`,
+  CALL_ACCEPT: `${BACKEND_URL}/api/video-session/accept`,
+  CALL_REJECT: `${BACKEND_URL}/api/video-session/reject`,
+  CALL_END: `${BACKEND_URL}/api/video-session/end`,
+  CALL_HISTORY: `${BACKEND_URL}/api/video-session/history`,
+  GENERATE_TOKEN: `${BACKEND_URL}/api/video-session/generate-token`,
 };
 
 
