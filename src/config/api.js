@@ -1,7 +1,7 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://kalpjoytish-backend.onrender.com/api/astrologer";
-export const UPLOAD_IMAGE_URL = import.meta.env.VITE_UPLOAD_IMAGE_URL || "https://kalpjoytish-backend.onrender.com/api/upload/image";
-export const TOGGLE_ONLINE_URL = import.meta.env.VITE_TOGGLE_ONLINE_URL || "https://kalpjoytish-backend.onrender.com/api/astro/toggle-online";
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://kalpjoytish-backend.onrender.com";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://mantrajyotish-backend.vercel.app/api/astrologer";
+export const UPLOAD_IMAGE_URL = import.meta.env.VITE_UPLOAD_IMAGE_URL || "https://mantrajyotish-backend.vercel.app/api/upload/image";
+export const TOGGLE_ONLINE_URL = import.meta.env.VITE_TOGGLE_ONLINE_URL || "https://mantrajyotish-backend.vercel.app/api/astro/toggle-online";
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://mantrajyotish-backend.vercel.app";
 
 export const API_ENDPOINTS = {
   REGISTER: `${API_BASE_URL}/register`,

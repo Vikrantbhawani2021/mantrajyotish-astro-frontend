@@ -171,7 +171,7 @@ export default function ActiveChatModal({ session, onClose }) {
         try {
           const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
           const urls = [
-            `https://kalpjoytish-backend.onrender.com/api/chat/details/${sessionId}`
+            `https://mantrajyotish-backend.vercel.app/api/chat/details/${sessionId}`
           ];
 
           for (const url of urls) {
