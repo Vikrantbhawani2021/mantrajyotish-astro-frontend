@@ -93,7 +93,7 @@ export const uploadImageApi = async (file) => {
  */
 export const toggleOnlineApi = async (nextStatus) => {
   try {
-    const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+    const token = localStorage.getItem("token") || localStorage.getItem("astrologerToken") || "";
 
     console.log(`Toggling online status to ${nextStatus} via PUT:`, API_ENDPOINTS.TOGGLE_ONLINE);
 
@@ -106,7 +106,7 @@ export const toggleOnlineApi = async (nextStatus) => {
       },
       body: JSON.stringify({
         isOnline: nextStatus,
-        online: nextStatus,
+        isAvailable: nextStatus,
         status: nextStatus ? "online" : "offline"
       })
     });
@@ -114,8 +114,10 @@ export const toggleOnlineApi = async (nextStatus) => {
     const data = await response.json().catch(() => ({}));
     console.log("Toggle Online API Response:", response.status, data);
 
-    if (response.ok || data.success || data.status === "success" || data.isOnline !== undefined || data.data?.isOnline !== undefined) {
-      return data.data?.isOnline ?? data.isOnline ?? nextStatus;
+    if (response.ok && (data.success || data.isOnline !== undefined || data.data?.isOnline !== undefined)) {
+      const finalStatus = data.data?.isOnline ?? data.isOnline ?? nextStatus;
+      localStorage.setItem("astro_is_online", String(finalStatus));
+      return finalStatus;
     }
   } catch (err) {
     console.error("Error toggling online status:", err);
@@ -217,6 +219,7 @@ export const checkApprovalStatusApi = async () => {
       const normalized = {
         status:          raw.status          || raw.data?.status          || "pending",
         isApproved:      raw.isApproved      ?? raw.data?.isApproved      ?? false,
+        isOnline:        raw.isOnline        ?? raw.data?.isOnline        ?? false,
         interviewStatus: raw.interviewStatus || raw.data?.interviewStatus || "not_requested",
         interviewDate:   raw.interviewDate   || raw.data?.interviewDate   || null,
         date:            raw.date            || raw.data?.date            || null,
@@ -461,8 +464,7 @@ export const checkPendingRequestsApi = async () => {
     if (!astroId) return null;
 
     const urls = [
-      `${SOCKET_URL}/api/chat/sessions?astrologerId=${astroId}`,
-      `${SOCKET_URL}/api/chat/pending?astrologerId=${astroId}`
+      `${SOCKET_URL}/api/chat/sessions?astrologerId=${astroId}`
     ];
 
     for (const url of urls) {
@@ -720,9 +722,7 @@ export const checkPendingCallRequestsApi = async () => {
     const urls = [
       `${SOCKET_URL}/api/video-session/pending?astrologerId=${astroId}`,
       `${SOCKET_URL}/api/video-session/requests?astrologerId=${astroId}`,
-      `${SOCKET_URL}/api/video-session/astrologer/${astroId}`,
-      `${SOCKET_URL}/api/call/pending?astrologerId=${astroId}`,
-      `${SOCKET_URL}/api/call/requests?astrologerId=${astroId}`
+      `${SOCKET_URL}/api/video-session/astrologer/${astroId}`
     ];
 
     for (const url of urls) {

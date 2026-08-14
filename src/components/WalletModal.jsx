@@ -5,8 +5,8 @@ import {
 } from "lucide-react";
 
 export default function WalletModal({ isOpen, onClose, initialWithdrawOpen = false }) {
-  const [balance, setBalance] = useState(12450);
-  const [totalEarnings] = useState(45800);
+  const [balance, setBalance] = useState(0);
+  const [totalEarnings, setTotalEarnings] = useState(0);
   const [pendingPayout, setPendingPayout] = useState(0);
 
   // Form State
@@ -17,6 +17,64 @@ export default function WalletModal({ isOpen, onClose, initialWithdrawOpen = fal
       setIsWithdrawOpen(initialWithdrawOpen);
     }
   }, [isOpen, initialWithdrawOpen]);
+
+  // Fetch real wallet balance and transactions from API
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchWalletData = async () => {
+      try {
+        const storedUser = localStorage.getItem("astrologer");
+        let astroId = null;
+        let phone = null;
+
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            astroId = parsed._id || parsed.id || parsed.astrologerId;
+            phone = parsed.phone || parsed.mobile;
+          } catch (e) {}
+        }
+
+        const queryParams = new URLSearchParams();
+        if (astroId) queryParams.append("userId", astroId);
+        if (phone) queryParams.append("phone", phone);
+
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        // Fetch Balance
+        const balRes = await fetch(`/api/wallet/balance?${queryParams.toString()}`, { headers });
+        if (balRes.ok) {
+          const balData = await balRes.json();
+          if (balData.success && balData.data) {
+            setBalance(balData.data.walletBalance || 0);
+          }
+        }
+
+        // Fetch Transactions
+        const txRes = await fetch(`/api/wallet/transactions?${queryParams.toString()}`, { headers });
+        if (txRes.ok) {
+          const txData = await txRes.json();
+          if (txData.success && Array.isArray(txData.data)) {
+            const formatted = txData.data.map((tx) => ({
+              id: tx.transactionId || tx._id || `TXN-${Math.floor(1000 + Math.random() * 9000)}`,
+              amount: tx.amount || 0,
+              date: tx.createdAt ? new Date(tx.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Recent",
+              method: tx.description || tx.paymentMethod || "Wallet Payout",
+              status: tx.status || "Completed"
+            }));
+            setTransactions(formatted);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching wallet data:", err);
+      }
+    };
+
+    fetchWalletData();
+  }, [isOpen]);
+
   const [amount, setAmount] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("upi"); // "upi" | "bank"
   const [upiId, setUpiId] = useState("");
@@ -28,30 +86,8 @@ export default function WalletModal({ isOpen, onClose, initialWithdrawOpen = fal
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Sample Withdrawal Transactions
-  const [transactions, setTransactions] = useState([
-    {
-      id: "WDR-9841",
-      amount: 2500,
-      date: "22 Jul 2026, 04:30 PM",
-      method: "UPI: astro.digital@upi",
-      status: "Completed"
-    },
-    {
-      id: "WDR-9810",
-      amount: 1200,
-      date: "18 Jul 2026, 11:15 AM",
-      method: "Bank: HDFC Bank (•••• 4892)",
-      status: "Completed"
-    },
-    {
-      id: "WDR-9755",
-      amount: 3000,
-      date: "10 Jul 2026, 06:45 PM",
-      method: "UPI: astro.digital@upi",
-      status: "Completed"
-    }
-  ]);
+  // Real Withdrawal Transactions list state
+  const [transactions, setTransactions] = useState([]);
 
   if (!isOpen) return null;
 

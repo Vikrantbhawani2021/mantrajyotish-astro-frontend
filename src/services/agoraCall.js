@@ -52,6 +52,8 @@ export const joinAgoraCallChannel = async ({
       rtcClient.removeAllListeners("user-joined");
     }
 
+    const client = rtcClient;
+
     // Handle Safari/Mobile Autoplay restrictions
     AgoraRTC.onAutoplayFailed = () => {
       console.warn("Autoplay blocked by browser. User must click to resume audio.");
@@ -59,9 +61,11 @@ export const joinAgoraCallChannel = async ({
     };
 
     // Register Remote Event Listeners
-    rtcClient.on("user-published", async (user, mediaType) => {
+    client.on("user-published", async (user, mediaType) => {
       console.log("👤 Remote user published track:", user.uid, mediaType);
-      await rtcClient.subscribe(user, mediaType);
+      if (client) {
+        await client.subscribe(user, mediaType);
+      }
 
       if (mediaType === "audio") {
         try {
@@ -76,14 +80,14 @@ export const joinAgoraCallChannel = async ({
       }
     });
 
-    rtcClient.on("user-left", (user, reason) => {
+    client.on("user-left", (user, reason) => {
       console.log("👋 Remote user left channel:", user.uid, reason);
       if (callEvents.onRemoteUserLeft) {
         callEvents.onRemoteUserLeft(user, reason);
       }
     });
 
-    rtcClient.on("user-joined", (user) => {
+    client.on("user-joined", (user) => {
       console.log("🤝 Remote user joined channel:", user.uid);
       if (callEvents.onRemoteUserJoined) {
         callEvents.onRemoteUserJoined(user);
@@ -92,7 +96,7 @@ export const joinAgoraCallChannel = async ({
 
     // Join Channel — pass null for mock/empty tokens (enables Agora App-ID-only test mode)
     const resolvedToken = (token && !String(token).startsWith("mock_")) ? token : null;
-    const joinedUid = await rtcClient.join(
+    const joinedUid = await client.join(
       finalAppId,
       channelName,
       resolvedToken,
@@ -107,17 +111,17 @@ export const joinAgoraCallChannel = async ({
           { encoderConfig: "speech_standard" },
           { encoderConfig: "720p_1" }
         );
-        await rtcClient.publish([localAudioTrack, localVideoTrack]);
+        await client.publish([localAudioTrack, localVideoTrack]);
         console.log("📹 Local Microphone & Camera tracks published!");
       } catch (mediaErr) {
         console.warn("⚠️ Camera/Mic error, trying Audio track fallback:", mediaErr);
         localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        await rtcClient.publish([localAudioTrack]);
+        await client.publish([localAudioTrack]);
       }
     } else {
       // Audio Call Only
       localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack({ encoderConfig: "speech_standard" });
-      await rtcClient.publish([localAudioTrack]);
+      await client.publish([localAudioTrack]);
       console.log("🎙️ Local Microphone Audio track published!");
     }
 

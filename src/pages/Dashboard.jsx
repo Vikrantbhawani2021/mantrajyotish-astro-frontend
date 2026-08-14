@@ -801,7 +801,7 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
       setActiveCallSession(null);
     });
 
-    const unsubCallAccepted = subscribeSocketEvent("callAccepted", (data) => {
+    const unsubCallAccepted = subscribeSocketEvent("call_accepted", (data) => {
       console.log("✅ Call accepted event on Dashboard:", data);
       setIncomingCallRequest(null);
       if (data && (data.channelName || data.callId)) {

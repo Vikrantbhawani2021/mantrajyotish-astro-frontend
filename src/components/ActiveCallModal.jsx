@@ -27,6 +27,7 @@ export default function ActiveCallModal({ session, onClose }) {
 
   const callId = session?.callId || session?.sessionId || session?._id || session?.id || "";
   const user = session?.user || {};
+  const clientName = user?.name || (user?.firstname || user?.lastname ? `${user.firstname || ""} ${user.lastname || ""}`.trim() : null) || "Client User";
   const perMinuteRate = Number(session?.perMinuteRate || session?.rate || 25) || 25;
   const callType = (session?.callType || "AUDIO").toUpperCase();
   const isVideoCall = callType === "VIDEO";
@@ -126,7 +127,7 @@ export default function ActiveCallModal({ session, onClose }) {
       setWalletWarning(data?.message || "User wallet balance is low!");
     });
 
-    const unsubPeerMedia = subscribeSocketEvent("peerMediaStateChanged", (data) => {
+    const unsubPeerMedia = subscribeSocketEvent("peer_media_state_changed", (data) => {
       if (data) {
         setPeerMediaState({
           isAudioMuted: !!data.isAudioMuted,
@@ -203,13 +204,13 @@ export default function ActiveCallModal({ session, onClose }) {
           <div className="relative">
             <img
               src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
-              alt={user?.name || "User"}
+              alt={clientName}
               className="w-11 h-11 rounded-full object-cover border-2 border-orange-500"
             />
             <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-black ${isConnected ? "bg-emerald-500" : "bg-yellow-500 animate-ping"}`}></span>
           </div>
           <div>
-            <h3 className="font-bold text-sm leading-tight text-white">{user?.name || "User Client"}</h3>
+            <h3 className="font-bold text-sm leading-tight text-white">{clientName}</h3>
             <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               {isConnected ? "Connected Live" : "Connecting Stream..."}
@@ -242,7 +243,7 @@ export default function ActiveCallModal({ session, onClose }) {
         <div className="absolute top-20 z-30 bg-red-500/80 backdrop-blur-md text-white font-bold px-3 py-1 rounded-full text-[11px] flex items-center gap-1.5 shadow-md">
           {peerMediaState.isAudioMuted && <MicOff className="w-3.5 h-3.5 text-red-200" />}
           {peerMediaState.isVideoMuted && <VideoOff className="w-3.5 h-3.5 text-red-200" />}
-          <span>{user?.name || "User"} muted {peerMediaState.isAudioMuted ? "microphone" : "video"}</span>
+          <span>{clientName} muted {peerMediaState.isAudioMuted ? "microphone" : "video"}</span>
         </div>
       )}
 
@@ -254,23 +255,24 @@ export default function ActiveCallModal({ session, onClose }) {
           /* VIDEO CALL INTERFACE */
           <div className="w-full h-full relative flex items-center justify-center">
             {/* Remote Client Video Window */}
-            <div
-              ref={remoteVideoRef}
-              className="w-full h-full bg-slate-900 flex items-center justify-center overflow-hidden"
-            >
+            <div className="w-full h-full bg-slate-900 relative overflow-hidden">
+              <div
+                ref={remoteVideoRef}
+                className="w-full h-full flex items-center justify-center"
+              />
               {(!hasRemoteVideo || !isConnected) && (
-                <div className="flex flex-col items-center gap-4 text-center p-6">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-6 bg-slate-900 z-10">
                   <div className="relative">
                     <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-[#ff7448] to-[#D53F8C] p-1 animate-pulse">
                       <img
                         src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
-                        alt={user?.name}
+                        alt={clientName}
                         className="w-full h-full rounded-full object-cover"
                       />
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white">{user?.name}</h3>
+                    <h3 className="text-lg font-bold text-white">{clientName}</h3>
                     <p className="text-xs text-gray-400 mt-1">Waiting for remote camera video stream...</p>
                   </div>
                 </div>
@@ -279,15 +281,14 @@ export default function ActiveCallModal({ session, onClose }) {
 
             {/* Local Astrologer Self Video Preview (Picture in Picture Overlay) */}
             <div className="absolute bottom-28 right-4 w-32 h-44 sm:w-40 sm:h-56 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-black/80 z-20">
-              <div ref={localVideoRef} className="w-full h-full object-cover">
-                {isCameraOff && (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400 text-xs gap-1">
-                    <VideoOff className="w-6 h-6 text-red-400" />
-                    <span>Camera Off</span>
-                  </div>
-                )}
-              </div>
-              <div className="absolute bottom-1 left-2 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-white font-medium">
+              <div ref={localVideoRef} className="w-full h-full" />
+              {isCameraOff && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-400 text-xs gap-1 z-10">
+                  <VideoOff className="w-6 h-6 text-red-400" />
+                  <span>Camera Off</span>
+                </div>
+              )}
+              <div className="absolute bottom-1 left-2 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-white font-medium z-10">
                 You (Astrologer)
               </div>
             </div>
@@ -303,7 +304,7 @@ export default function ActiveCallModal({ session, onClose }) {
               <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-[#ff7448] via-amber-500 to-[#D53F8C] shadow-2xl z-10">
                 <img
                   src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
-                  alt={user?.name}
+                  alt={clientName}
                   className="w-full h-full rounded-full object-cover border-4 border-gray-950"
                 />
               </div>
@@ -311,7 +312,7 @@ export default function ActiveCallModal({ session, onClose }) {
 
             {/* User Info & Audio Status */}
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-wide">{user?.name || "Client User"}</h2>
+              <h2 className="text-2xl font-bold text-white tracking-wide">{clientName}</h2>
               <div className="mt-2 flex items-center justify-center gap-2 text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-4 py-1 rounded-full">
                 <Volume2 className="w-4 h-4 animate-bounce" />
                 <span>HD Voice Audio Stream Connected</span>

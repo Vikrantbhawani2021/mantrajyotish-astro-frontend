@@ -1,16 +1,84 @@
 import { Bell, Wallet } from "lucide-react";
-import { useState } from "react";
-import { toggleOnlineApi } from "../config/api";
+import { useState, useEffect } from "react";
+import { toggleOnlineApi, checkApprovalStatusApi } from "../config/api";
+import { subscribeSocketEvent } from "../services/socket";
 import WalletModal from "./WalletModal";
 
 export default function Header() {
   const [online, setOnline] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  const fetchHeaderData = async () => {
+    try {
+      // 1. Initial cached state from localStorage for instant UI rendering
+      const cachedStatus = localStorage.getItem("astro_is_online");
+      if (cachedStatus !== null) {
+        setOnline(cachedStatus === "true");
+      }
+
+      // 2. Fetch real online status from backend DB
+      const statusData = await checkApprovalStatusApi();
+      if (statusData && typeof statusData.isOnline === "boolean") {
+        setOnline(statusData.isOnline);
+        localStorage.setItem("astro_is_online", String(statusData.isOnline));
+      }
+
+      const storedUser = localStorage.getItem("astrologer");
+      let astroId = null;
+      let phone = null;
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          astroId = parsed._id || parsed.id || parsed.astrologerId;
+          phone = parsed.phone || parsed.mobile;
+        } catch (e) {}
+      }
+      const queryParams = new URLSearchParams();
+      if (astroId) queryParams.append("userId", astroId);
+      if (phone) queryParams.append("phone", phone);
+
+      const token = localStorage.getItem("token") || localStorage.getItem("astrologerToken") || "";
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await fetch(`/api/wallet/balance?${queryParams.toString()}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          setWalletBalance(data.data.walletBalance || 0);
+        }
+      }
+    } catch (err) {
+      console.error("Header data fetch error:", err);
+    }
+  };
+
+  // Fetch real online status & wallet balance on header mount
+  useEffect(() => {
+    fetchHeaderData();
+  }, [isWalletOpen]);
+
+  // Real-time wallet balance update on call / chat ended events
+  useEffect(() => {
+    const unsubEndedChat = subscribeSocketEvent("chatEnded", () => {
+      console.log("💬 Chat ended event received in Header - refetching wallet balance...");
+      setTimeout(fetchHeaderData, 800); // 800ms offset to guarantee DB write completion
+    });
+    const unsubEndedCall = subscribeSocketEvent("callEnded", () => {
+      console.log("🔴 Call ended event received in Header - refetching wallet balance...");
+      setTimeout(fetchHeaderData, 800); // 800ms offset to guarantee DB write completion
+    });
+
+    return () => {
+      unsubEndedChat();
+      unsubEndedCall();
+    };
+  }, []);
 
   const astroUser = (() => {
     try {
-      const keys = ["astrologerUser", "astrologer_profile_data", "astrologer_profile_draft", "user"];
+      const keys = ["astrologerUser", "astrologer_profile_data", "astrologer_profile_draft", "user", "astrologer"];
       for (const k of keys) {
         const v = localStorage.getItem(k);
         if (v) {
@@ -22,20 +90,24 @@ export default function Header() {
     return {};
   })();
 
-  const astroName = astroUser.name || astroUser.firstname || astroUser.astrologerName || astroUser.username || "Sanjeev Baba";
+  const astroName = astroUser.name || astroUser.firstname || astroUser.astrologerName || astroUser.username || "Astrologer";
   const astroSpec = astroUser.specialization 
     ? (Array.isArray(astroUser.specialization) ? astroUser.specialization.join(", ") : astroUser.specialization) 
     : (astroUser.skills || "Vedic Astrology Expert");
 
   const handleToggleStatus = async () => {
     const nextState = !online;
-    setOnline(nextState);
     setLoading(true);
     try {
       const updatedStatus = await toggleOnlineApi(nextState);
-      setOnline(updatedStatus);
+      if (typeof updatedStatus === "boolean") {
+        setOnline(updatedStatus);
+        localStorage.setItem("astro_is_online", String(updatedStatus));
+      }
     } catch (err) {
       console.error("Toggle online status error:", err);
+      setOnline(online); // Revert switch state on error
+      alert("Only approved astrologers can switch to Online mode.");
     } finally {
       setLoading(false);
     }
@@ -71,7 +143,7 @@ export default function Header() {
               title="Astrologer Wallet"
             >
               <Wallet className="w-5 h-5 text-amber-300" />
-              <span className="text-[13.5px] font-bold">₹12.45k</span>
+              <span className="text-[13.5px] font-bold">₹{walletBalance.toLocaleString("en-IN")}</span>
             </button>
 
             {/* Bell Icon Container */}
