@@ -25,7 +25,7 @@ export default function Header() {
         localStorage.setItem("astro_is_online", String(statusData.isOnline));
       }
 
-      const storedUser = localStorage.getItem("astrologer");
+      const storedUser = localStorage.getItem("astrologerUser") || localStorage.getItem("astrologer");
       let astroId = null;
       let phone = null;
       if (storedUser) {

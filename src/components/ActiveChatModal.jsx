@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, PhoneOff, Clock, User, ChevronDown, ChevronUp, Image, AlertTriangle, ShieldAlert, CheckCheck } from "lucide-react";
+import { Send, PhoneOff, Clock, User, ChevronDown, ChevronUp, Image, AlertTriangle, ShieldAlert, CheckCheck, Plus, Calendar, MapPin, Star, Copy, Wallet } from "lucide-react";
 import { sendChatMessage, emitTyping, endChatSession, subscribeSocketEvent, joinChatRoom, acceptChatRequest } from "../services/socket";
 import { endChatApi, fetchChatMessagesApi, sendChatMessageApi } from "../config/api";
 
@@ -12,6 +12,16 @@ export default function ActiveChatModal({ session, onClose }) {
   const [isUserTyping, setIsUserTyping] = useState(false);
   const [walletWarning, setWalletWarning] = useState(null);
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300;
+    setShowScrollBottom(isScrolledUp);
+  };
 
   const astroUser = JSON.parse(localStorage.getItem("astrologerUser") || "{}");
   const astroId = astroUser._id || astroUser.id || astroUser.astrologerId || session?.astrologerId || session?.astrologer || "";
@@ -55,7 +65,18 @@ export default function ActiveChatModal({ session, onClose }) {
         }
       });
 
-      // Start local duration counter
+      // Start local duration counter with correct offset
+      let initialSeconds = 0;
+      const sessionStart = session?.startTime || session?.createdAt;
+      if (sessionStart) {
+        const start = new Date(sessionStart).getTime();
+        const now = Date.now();
+        if (!isNaN(start) && now > start) {
+          initialSeconds = Math.floor((now - start) / 1000);
+        }
+      }
+      setSecondsElapsed(initialSeconds);
+
       timer = setInterval(() => {
         setSecondsElapsed((prev) => prev + 1);
       }, 1000);
@@ -240,6 +261,10 @@ export default function ActiveChatModal({ session, onClose }) {
     // Update local state immediately
     setMessages((prev) => [...prev, newMsg]);
     setInputMessage("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "36px";
+      textareaRef.current.style.overflowY = "hidden";
+    }
 
     // 1. Send via Socket.io
     sendChatMessage(newMsg);
@@ -266,22 +291,29 @@ export default function ActiveChatModal({ session, onClose }) {
   };
 
   const handleEndChat = async () => {
-    if (window.confirm("Are you sure you want to end this chat session?")) {
+    if (window.confirm(`Are you sure you want to end this chat session? (Session ID: ${sessionId})`)) {
       try {
         await endChatApi(sessionId);
         endChatSession(sessionId);
+        localStorage.setItem("lastEndedChatSessionId", sessionId);
+        alert(`Chat Session Ended Successfully!\n\nSession ID: ${sessionId}\nDuration: ${formatTimer(secondsElapsed)}\nTotal Earnings: ₹${currentEarnings}`);
       } catch (err) {
         console.error("Error ending chat:", err);
+        alert(`Error ending chat: ${err.message || err}`);
       } finally {
         onClose();
       }
     }
   };
 
-  // Format MM:SS
+  // Format HH:MM:SS or MM:SS
   const formatTimer = (totalSeconds) => {
-    const mins = Math.floor(totalSeconds / 60);
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -290,91 +322,204 @@ export default function ActiveChatModal({ session, onClose }) {
   const currentEarnings = (elapsedMinutes * perMinuteRate).toFixed(2);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-[430px] h-screen bg-[#F4F5FB] flex flex-col overflow-hidden shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex justify-center bg-[#F3F4F6] animate-fade-in">
+      <div className="w-full max-w-[430px] md:max-w-[850px] h-screen bg-[#F8F9FD] flex flex-col overflow-hidden shadow-2xl relative">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#ff8f6c] to-[#ff5c33] text-white px-4 py-3 flex items-center justify-between shadow-md z-10">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative">
-              <img
-                src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
-                alt={user?.name}
-                className="w-11 h-11 rounded-full object-cover border-2 border-white/80"
-              />
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full"></span>
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-bold text-[16px] leading-tight truncate">{user?.name || "Client User"}</h3>
-              <p className="text-xs text-orange-100 font-medium flex items-center gap-1 mt-0.5">
-                <Clock className="w-3 h-3" /> Rate: ₹{perMinuteRate}/min
-              </p>
-            </div>
-          </div>
-
-          {/* Earnings Counter & End Button */}
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="bg-black/20 text-yellow-300 px-2.5 py-0.5 rounded-full text-xs font-black tracking-wide border border-white/20">
-                ⏱️ {formatTimer(secondsElapsed)}
+        <div className="bg-gradient-to-r from-[#ff8f6c] to-[#ff5c33] border-b border-orange-500/20 px-3 py-3 sticky top-0 z-20 text-white shadow-md">
+          <div className="max-w-[520px] mx-auto w-full flex items-center justify-between">
+            <div className="flex items-center gap-2 max-w-[50%]">
+              <div className="relative flex-shrink-0">
+                <img
+                  src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
+                  alt={user?.name}
+                  className="w-10 h-10 rounded-full object-cover border border-white/20"
+                />
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#ff8f6c] rounded-full"></span>
               </div>
-              <p className="text-[11px] text-white/90 font-bold mt-0.5">
-                ₹{currentEarnings}
-              </p>
+              <div className="min-w-0">
+                <h2 className="font-bold text-white text-xs md:text-sm leading-tight truncate">
+                  {user?.name || "Client User"}
+                </h2>
+                <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                  <span className="text-[9px] text-orange-100 font-bold uppercase tracking-wide truncate">
+                    Online
+                  </span>
+                  <span className="text-[9px] text-orange-200/80">•</span>
+                  <span className="text-[9px] text-orange-100 font-bold truncate">
+                    Rate: ₹{perMinuteRate}/min
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <button
-              onClick={handleEndChat}
-              className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-full shadow-lg transition-all active:scale-95 cursor-pointer"
-              title="End Chat"
-            >
-              <PhoneOff className="w-4 h-4" />
-            </button>
+            {/* Time Elapsed Badge */}
+            <div className="flex flex-col items-center justify-center text-center flex-shrink-0">
+              <div className="flex items-center gap-1 bg-black/15 px-2 py-0.5 rounded-full text-white font-mono text-[10px] font-medium border border-white/5">
+                <Clock size={10} className="opacity-95" />
+                <span>{formatTimer(secondsElapsed)}</span>
+              </div>
+              <span className="text-[7px] text-orange-100/80 font-bold uppercase mt-0.5 tracking-wide">Time Elapsed</span>
+            </div>
+
+            {/* Earnings & End Button Section */}
+            <div className="flex items-center gap-1.5 relative flex-shrink-0">
+              <div 
+                className="flex items-center gap-2 bg-white rounded-xl px-2 py-0.5 border border-white/80 shadow-xs h-8"
+              >
+                <div className="flex flex-col items-start">
+                  <div className="flex items-center gap-0.5 text-gray-800 text-[10px] font-medium leading-none">
+                    <Wallet size={9} className="text-gray-400" />
+                    <span>₹{Number(currentEarnings).toFixed(2)}</span>
+                  </div>
+                  <span className="text-[6px] text-gray-400 font-bold uppercase mt-0.5 tracking-wide">Total Earned</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleEndChat}
+                className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md shadow-red-600/10 flex-shrink-0"
+                title="End Chat"
+              >
+                <PhoneOff size={14} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Expandable User Kundli Details */}
-        <div className="bg-white border-b border-gray-200 text-xs shadow-sm">
-          <button
+        {/* Customer Birth & Kundli Details Card */}
+        <div className={`bg-white border-l border-r border-gray-100 shadow-sm text-xs z-30 relative transition-all ${showKundliDetails ? "rounded-b-none border-b-0" : "rounded-b-3xl border-b"}`}>
+          <div 
             onClick={() => setShowKundliDetails(!showKundliDetails)}
-            className="w-full px-4 py-2 flex items-center justify-between text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between cursor-pointer p-4.5 pb-3"
           >
-            <span className="flex items-center gap-1.5 text-[#ff7448]">
-              <User className="w-3.5 h-3.5" /> Customer Birth & Kundli Details
-            </span>
-            {showKundliDetails ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-          </button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-[#FFF2EC] flex items-center justify-center text-[#FF6F3D]">
+                <User size={14} />
+              </div>
+              <span className="font-medium text-[#FF6F3D] text-[10px] uppercase tracking-wider">
+                Customer Birth & Kundli Details
+              </span>
+            </div>
+            <button className="text-gray-400 p-1 rounded-full hover:bg-gray-50 cursor-pointer">
+              {showKundliDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          </div>
 
           {showKundliDetails && (
-            <div className="px-4 pb-3 grid grid-cols-2 gap-2 text-gray-600 border-t border-gray-100 pt-2 bg-orange-50/40">
-              <div><span className="font-semibold">DOB:</span> {user?.dob || "Not Specified"}</div>
-              <div><span className="font-semibold">TOB:</span> {user?.tob || "Not Specified"}</div>
-              <div><span className="font-semibold">POB:</span> {user?.pob || "Not Specified"}</div>
-              <div><span className="font-semibold">Gender:</span> {user?.gender || "Not Specified"}</div>
+            <div className="absolute top-full left-[-1px] right-[-1px] px-4.5 pb-4.5 pt-1 space-y-4 bg-white rounded-b-3xl border-b border-l border-r border-gray-100 shadow-lg z-30 animate-fade-in">
+              {/* 2x2 grid of details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-100/50 flex-shrink-0">
+                    <Calendar size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[8px] text-gray-400 font-normal uppercase tracking-wider">DOB</div>
+                    <div className="text-xs font-medium text-gray-800 mt-0.5">
+                      {user?.dob || "Not Specified"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-100/50 flex-shrink-0">
+                    <Clock size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[8px] text-gray-400 font-normal uppercase tracking-wider">TOB</div>
+                    <div className="text-xs font-medium text-gray-800 mt-0.5">
+                      {user?.tob || "Not Specified"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-100/50 flex-shrink-0">
+                    <MapPin size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[8px] text-gray-400 font-normal uppercase tracking-wider">POB</div>
+                    <div className="text-xs font-medium text-gray-800 mt-0.5 truncate max-w-[110px]" title={user?.pob || "Not Specified"}>
+                      {user?.pob || "Not Specified"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-100/50 flex-shrink-0">
+                    <User size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[8px] text-gray-400 font-normal uppercase tracking-wider">Gender</div>
+                    <div className="text-xs font-medium text-gray-800 mt-0.5 capitalize">
+                      {user?.gender || "Not Specified"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Consultation Topic */}
               {user?.topic && (
-                <div className="col-span-2 text-orange-700 font-semibold">
-                  <span>Topic:</span> {user.topic}
+                <div className="bg-[#FFF2EC] border border-[#ffe0d1] rounded-2xl p-3 flex items-center gap-2.5">
+                  <Star size={14} className="text-[#FF6F3D] fill-[#FF6F3D] flex-shrink-0" />
+                  <div>
+                    <div className="text-[8px] text-[#FF6F3D]/80 font-normal uppercase tracking-wider">Consultation Topic</div>
+                    <div className="text-xs font-medium text-gray-800 mt-0.5">{user.topic}</div>
+                  </div>
                 </div>
               )}
+
+              {/* Session ID display */}
+              <div className="flex justify-between items-center bg-[#FAFAFA] border border-gray-100 rounded-2xl px-3 py-2 text-[10px]">
+                <span className="text-gray-400 font-normal">Session ID</span>
+                <div className="flex items-center gap-1.5 bg-white border border-gray-100 px-2 py-0.5 rounded-lg shadow-2xs">
+                  <span className="font-mono text-gray-600 select-all" title={sessionId}>{sessionId || "N/A"}</span>
+                  <button 
+                    onClick={() => {
+                      if (sessionId) {
+                        navigator.clipboard.writeText(sessionId);
+                        alert("Session ID copied!");
+                      }
+                    }}
+                    className="text-gray-400 hover:text-gray-600 cursor-pointer p-0.5 rounded"
+                  >
+                    <Copy size={10} />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-
         {/* Low Wallet Warning Banner */}
         {walletWarning && (
-          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 font-semibold flex items-center gap-2 animate-bounce">
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs text-amber-800 font-semibold flex items-center gap-2 animate-bounce">
             <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <span>{walletWarning}</span>
           </div>
         )}
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+        <div 
+          ref={chatContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 bg-gradient-to-b from-gray-50/50 to-gray-100/30 relative"
+        >
+          {showScrollBottom && (
+            <button 
+              type="button"
+              onClick={scrollToBottom}
+              className="absolute bottom-6 right-6 z-40 bg-white text-[#ff5c33] hover:bg-gray-50 border border-gray-200 p-2 rounded-full shadow-md flex items-center justify-center cursor-pointer transition-all active:scale-90"
+              title="Scroll to Bottom"
+            >
+              <ChevronDown size={18} strokeWidth={3} />
+            </button>
+          )}
           {messages.map((msg, i) => {
             if (msg.senderType === "SYSTEM") {
               return (
-                <div key={i} className="self-center my-1 bg-gray-200/80 text-gray-700 text-[11px] font-semibold px-3 py-1 rounded-full text-center max-w-[85%]">
+                <div key={i} className="self-center my-2 bg-gray-200/50 text-gray-500 text-[10px] uppercase tracking-wider font-extrabold px-4 py-1.5 rounded-full text-center max-w-[85%] border border-gray-200/20 shadow-sm">
                   {msg.text}
                 </div>
               );
@@ -383,23 +528,23 @@ export default function ActiveChatModal({ session, onClose }) {
             const typeUpper = String(msg.senderType || msg.role || "").toUpperCase();
             const isMe = typeUpper === "ASTROLOGER" || typeUpper === "ASTRO" || (msg.senderId && String(msg.senderId) === String(astroId));
 
-
             return (
               <div
                 key={i}
                 className={`flex flex-col max-w-[78%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
               >
                 <div
-                  className={`px-4 py-2.5 rounded-[20px] text-sm shadow-sm leading-relaxed ${
+                  className={`px-4 py-2.5 rounded-[20px] text-[14px] shadow-sm leading-relaxed break-words max-w-full ${
                     isMe
                       ? "bg-gradient-to-r from-[#ff7448] to-[#ff5c33] text-white rounded-tr-none"
-                      : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
+                      : "bg-white text-gray-800 border border-gray-200/50 rounded-tl-none"
                   }`}
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
                 >
                   {msg.text || msg.message || msg.content}
                 </div>
-                <div className="flex items-center gap-1 mt-1 px-1">
-                  <span className="text-[10px] text-gray-400 font-medium">
+                <div className="flex items-center gap-1 mt-1 px-1.5">
+                  <span className="text-[10px] text-gray-400 font-bold">
                     {msg.timestamp || "Now"}
                   </span>
                   {isMe && (
@@ -410,9 +555,8 @@ export default function ActiveChatModal({ session, onClose }) {
             );
           })}
 
-
           {isUserTyping && (
-            <div className="self-start bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-full italic animate-pulse">
+            <div className="self-start bg-gray-200/50 text-gray-500 text-xs px-3.5 py-2 rounded-full italic animate-pulse border border-gray-200/30">
               User is typing...
             </div>
           )}
@@ -420,27 +564,40 @@ export default function ActiveChatModal({ session, onClose }) {
         </div>
 
         {/* Bottom Message Input Bar */}
-        <div className="bg-white p-3 border-t border-gray-100 flex items-center gap-2 shadow-lg">
-          <button className="text-gray-400 hover:text-[#ff7448] p-2 transition-colors cursor-pointer">
-            <Image className="w-5 h-5" />
-          </button>
+        <div className="p-4 bg-[#FAFAFA] border-t border-gray-100 flex items-center sticky bottom-0 z-10 w-full">
+          <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 p-1.5 pl-2 pr-2 flex items-end">
+            <button className="w-9 h-9 rounded-full bg-[#FFF2EC] hover:bg-[#ffe5d9] flex items-center justify-center text-[#FF6F3D] cursor-pointer active:scale-95 transition-all flex-shrink-0">
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
 
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={handleInputChange}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Type your message here..."
-            className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff7448]/30 font-medium text-gray-800"
-          />
-
-          <button
-            onClick={handleSend}
-            disabled={!inputMessage.trim()}
-            className="bg-gradient-to-r from-[#ff7448] to-[#ff5c33] hover:opacity-90 disabled:opacity-40 text-white p-2.5 rounded-full shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <Send className="w-4 h-4" />
-          </button>
+            <textarea
+              ref={textareaRef}
+              placeholder="Type a message..."
+              value={inputMessage}
+              rows={1}
+              onChange={(e) => {
+                handleInputChange(e);
+                e.target.style.height = "36px";
+                const newHeight = Math.min(e.target.scrollHeight, 100);
+                e.target.style.height = `${newHeight}px`;
+                e.target.style.overflowY = e.target.scrollHeight > 100 ? "auto" : "hidden";
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              className="flex-1 outline-none text-sm bg-transparent placeholder-gray-400 ml-3 resize-none max-h-[100px] py-1.5 text-gray-800"
+              style={{ height: "36px", minHeight: "36px", lineHeight: "24px", overflowY: "hidden" }}
+            />
+            <button
+              onClick={handleSend}
+              className="ml-2 w-9 h-9 rounded-full bg-[#FF6F3D] hover:bg-[#e05e30] flex items-center justify-center text-white cursor-pointer active:scale-95 transition-all shadow-md shadow-orange-500/20 flex-shrink-0"
+            >
+              <Send size={16} className="fill-white translate-x-[1px]" />
+            </button>
+          </div>
         </div>
 
       </div>

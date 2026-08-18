@@ -24,7 +24,7 @@ export default function WalletModal({ isOpen, onClose, initialWithdrawOpen = fal
 
     const fetchWalletData = async () => {
       try {
-        const storedUser = localStorage.getItem("astrologer");
+        const storedUser = localStorage.getItem("astrologerUser") || localStorage.getItem("astrologer");
         let astroId = null;
         let phone = null;
 

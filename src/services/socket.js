@@ -107,9 +107,9 @@ export const extractUserData = (data) => {
     data.image ||
     "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80";
 
-  const dob = userObj.dob || userObj.dateOfBirth || userObj.birthDate || data.dob || data.dateOfBirth || data.birthDate || "Not Specified";
-  const tob = userObj.tob || userObj.timeOfBirth || userObj.birthTime || data.tob || data.timeOfBirth || data.birthTime || "Not Specified";
-  const pob = userObj.pob || userObj.placeOfBirth || userObj.birthPlace || data.pob || data.placeOfBirth || data.birthPlace || "Not Specified";
+  const dob = userObj.dob || userObj.dateofbirth || userObj.dateOfBirth || userObj.birthDate || data.dob || data.dateofbirth || data.dateOfBirth || data.birthDate || "Not Specified";
+  const tob = userObj.tob || userObj.timeofbirth || userObj.timeOfBirth || userObj.birthTime || data.tob || data.timeofbirth || data.timeOfBirth || data.birthTime || "Not Specified";
+  const pob = userObj.pob || userObj.placeofbirth || userObj.placeOfBirth || userObj.birthPlace || data.pob || data.placeofbirth || data.placeOfBirth || data.birthPlace || "Not Specified";
   const topic = userObj.topic || userObj.consultationTopic || data.topic || data.consultationTopic || data.subject || "Astrology Consultation";
   const gender = userObj.gender || data.gender || "Not Specified";
 
