@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, ChevronDown, Mic, Video, MessageSquare, Radio, Mail, Phone, Briefcase, User, Mars, Sliders, Building, Compass, MapPin, Sparkles, LogOut, Camera, Loader2, Play, MessageCircle } from "lucide-react";
-import { uploadImageApi, fetchChatHistoryApi, checkPendingRequestsApi } from "../config/api";
+import { ArrowLeft, ChevronDown, Mic, Video, MessageSquare, Radio, Mail, Phone, Briefcase, User, Mars, Sliders, Building, Compass, MapPin, Sparkles, LogOut, Camera, Loader2, Play, MessageCircle, CheckCircle, ShieldAlert } from "lucide-react";
+import { uploadImageApi, fetchChatHistoryApi, checkPendingRequestsApi, BACKEND_URL } from "../config/api";
 import Header from "../components/Header";
 import DashboardGrid from "../components/DashboardGrid";
 import WalletModal from "../components/WalletModal";
@@ -244,11 +244,85 @@ function LiveChatView({ onBack, onSimulateDemo, onSelectChat }) {
 
 
 function RatingsView({ onBack }) {
-  const reviews = [
-    { id: 1, name: "Karan Gupta", rating: 5, comment: "Very detailed horoscope reading, loved it!" },
-    { id: 2, name: "Sonia Sen", rating: 4, comment: "Helpful insights and very polite explanation." },
-    { id: 3, name: "Meera Nair", rating: 5, comment: "Accurate predictions, highly recommended!" },
-  ];
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        // Retrieve astro ID securely
+        let astroId = "";
+        const keys = ["astrologerUser", "user", "astrologer", "userData", "profile"];
+        for (const key of keys) {
+          const val = localStorage.getItem(key);
+          if (val) {
+            try {
+              const parsed = JSON.parse(val);
+              const id = parsed._id || parsed.id || parsed.astrologerId || parsed.userId;
+              if (id) {
+                astroId = String(id);
+                break;
+              }
+            } catch {}
+          }
+        }
+        if (!astroId) {
+          astroId = localStorage.getItem("astrologerId") || localStorage.getItem("userId") || "";
+        }
+        if (astroId) {
+          const response = await fetch(`${BACKEND_URL}/api/astro/reviews/${astroId}`);
+          const resData = await response.json();
+          if (response.ok && resData.success) {
+            setReviews(resData.data || []);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load reviews:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReviews();
+  }, []);
+
+  const totalReviews = reviews.length;
+  const avgRating = totalReviews > 0 
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
+    : "0.0";
+
+  const totalPages = Math.ceil(totalReviews / itemsPerPage);
+  const displayedReviews = reviews.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (
+        i <= 2 || // First 2 pages
+        i >= totalPages - 1 || // Last 2 pages
+        (i >= currentPage - 1 && i <= currentPage + 1) // 1 page around current page
+      ) {
+        pages.push(i);
+      }
+    }
+    
+    // Insert "..." where there are gaps
+    const formattedPages = [];
+    let prev = null;
+    for (const page of pages) {
+      if (prev !== null) {
+        if (page - prev === 2) {
+          formattedPages.push(prev + 1);
+        } else if (page - prev > 2) {
+          formattedPages.push("...");
+        }
+      }
+      formattedPages.push(page);
+      prev = page;
+    }
+    return formattedPages;
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-gradient-to-b from-[#ff8f6c] to-[#ff5c33] overflow-hidden">
@@ -259,28 +333,93 @@ function RatingsView({ onBack }) {
         </button>
         <h1 className="text-[21px] font-semibold text-center">User Ratings</h1>
       </div>
-
       {/* Main Content Area */}
-      <div className="bg-white rounded-t-[32px] flex-1 px-5 pt-6 pb-6 overflow-y-auto flex flex-col gap-6 shadow-2xl">
-        <div className="flex items-center gap-6 p-5 rounded-[24px] bg-[#ff7448]/5 border border-[#ff7448]/10">
-          <div className="text-4xl font-extrabold text-[#ff7448]">4.8</div>
-          <div>
-            <div className="flex gap-1 text-yellow-500 text-lg">★★★★★</div>
-            <p className="text-sm text-gray-500 mt-0.5">Based on 124 reviews</p>
+      <div className="bg-white rounded-t-[32px] flex-1 px-5 pt-6 pb-6 overflow-y-auto flex flex-col justify-between shadow-2xl">
+        <div className="flex flex-col gap-6 flex-1">
+          <div className="flex items-center gap-6 p-5 rounded-[24px] bg-[#ff7448]/5 border border-[#ff7448]/10 flex-shrink-0">
+            <div className="text-4xl font-extrabold text-[#ff7448]">{avgRating}</div>
+            <div>
+              <div className="flex gap-1 text-yellow-500 text-lg">
+                {"★".repeat(Math.round(Number(avgRating)) || 0)}
+                {"☆".repeat(5 - (Math.round(Number(avgRating)) || 0))}
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5">Based on {totalReviews} reviews</p>
+            </div>
+          </div>
+          <div className="space-y-4 flex-1">
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <span className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></span>
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="text-center py-20 text-gray-400 text-sm">
+                No user reviews or ratings submitted yet.
+              </div>
+            ) : (
+              displayedReviews.map((r) => (
+                <div key={r.id || r._id} className="p-4 rounded-[20px] bg-gray-50 border border-gray-100 shadow-3xs">
+                  <div className="flex justify-between items-center mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-800">{r.name || r.userName || "Client User"}</p>
+                      <span className="text-[10px] text-gray-400 font-medium">{r.type || "Consultation"}</span>
+                    </div>
+                    <div className="text-yellow-500 text-sm">{"★".repeat(r.rating || 5)}</div>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{r.comment || r.review || "No review text submitted."}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <div className="space-y-4">
-          {reviews.map((r) => (
-            <div key={r.id} className="p-4 rounded-[20px] bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-center mb-2">
-                <p className="font-semibold text-gray-850">{r.name}</p>
-                <div className="text-yellow-500 text-sm">{"★".repeat(r.rating)}</div>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">{r.comment}</p>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1.5 mt-6 pt-4 border-t border-gray-100 flex-shrink-0">
+            {/* Prev Button */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95"
+            >
+              &lt;
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {getPageNumbers().map((page, idx) => {
+                if (page === "...") {
+                  return (
+                    <span key={`dots-${idx}`} className="w-9 h-9 flex items-center justify-center text-gray-400 font-semibold select-none">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={`page-${page}`}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-9 h-9 rounded-xl font-bold text-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center ${
+                      currentPage === page
+                        ? "bg-[#ff7448] text-white shadow-md shadow-orange-500/20"
+                        : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
             </div>
-          ))}
-        </div>
+
+            {/* Next Button */}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95"
+            >
+              &gt;
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -766,6 +905,8 @@ function ProfileView({ onBack, onLogout }) {
 export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
   const [activeView, setActiveView] = useState("grid");
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(initialOpenWithdraw);
+  const [summaryData, setSummaryData] = useState(null);
+  const [infoPopup, setInfoPopup] = useState(null);
   
   // Chat States
   const [incomingRequest, setIncomingRequest] = useState(null);
@@ -788,6 +929,22 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
     const unsubEndedGlobal = subscribeSocketEvent("chatEnded", (data) => {
       console.log("🔴 Global chatEnded event on Dashboard - clearing active session:", data);
       setActiveChatSession(null);
+      // ✅ Auto-close the incoming chat request overlay if cancelled
+      let wasIncomingActive = false;
+      setIncomingRequest(prev => {
+        const id = data?.sessionId || data?.chatId || data?.id || "";
+        if (prev && (prev.sessionId === id || prev._id === id || prev.id === id)) {
+          wasIncomingActive = true;
+          return null;
+        }
+        return prev;
+      });
+      if (wasIncomingActive) {
+        setInfoPopup({
+          title: "Request Cancelled",
+          message: "The user has cancelled the chat session request. You can consult other clients."
+        });
+      }
     });
 
     // 2. Audio/Video Call Socket Subscriptions
@@ -799,6 +956,22 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
     const unsubCallEnded = subscribeSocketEvent("callEnded", (data) => {
       console.log("🔴 Call ended on Dashboard - clearing active call:", data);
       setActiveCallSession(null);
+      // ✅ Auto-close the incoming call request overlay if cancelled
+      let wasIncomingActive = false;
+      setIncomingCallRequest(prev => {
+        const id = data?.sessionId || data?.callId || data?.id || "";
+        if (prev && (prev.sessionId === id || prev._id === id || prev.id === id)) {
+          wasIncomingActive = true;
+          return null;
+        }
+        return prev;
+      });
+      if (wasIncomingActive) {
+        setInfoPopup({
+          title: "Request Cancelled",
+          message: "The user has cancelled the call session request. You can consult other clients."
+        });
+      }
     });
 
     const unsubCallAccepted = subscribeSocketEvent("call_accepted", (data) => {
@@ -968,7 +1141,10 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
       {activeChatSession && (
         <ActiveChatModal
           session={activeChatSession}
-          onClose={() => setActiveChatSession(null)}
+          onClose={(summary) => {
+            setActiveChatSession(null);
+            if (summary) setSummaryData(summary);
+          }}
         />
       )}
 
@@ -985,8 +1161,78 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
       {activeCallSession && (
         <ActiveCallModal
           session={activeCallSession}
-          onClose={() => setActiveCallSession(null)}
+          onClose={(summary) => {
+            setActiveCallSession(null);
+            if (summary) setSummaryData(summary);
+          }}
         />
+      )}
+
+      {/* Session End Summary Popup Modal */}
+      {summaryData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[28px] max-w-sm w-full p-6 shadow-2xl border border-gray-150 flex flex-col items-center text-center relative animate-scale-up">
+            
+            {/* Success Check circle */}
+            <div className="w-16 h-16 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-4 shadow-inner">
+              <CheckCircle size={36} className="stroke-[2.5]" />
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900">Session Summary</h3>
+            <p className="text-xs text-gray-400 mt-1">Details of your completed consultation</p>
+
+            <div className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 mt-5 space-y-3.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-500 font-medium">Client</span>
+                <span className="font-bold text-gray-800">{summaryData.clientName}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-500 font-medium">Service Type</span>
+                <span className="font-bold text-gray-800 uppercase tracking-wider text-[10px] bg-orange-100 text-[#ff7448] px-2 py-0.5 rounded-full">
+                  {summaryData.type}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-500 font-medium">Duration</span>
+                <span className="font-bold text-gray-800">{summaryData.duration}</span>
+              </div>
+              <div className="border-t border-dashed border-gray-250 pt-3 flex justify-between items-center text-sm font-extrabold text-gray-900">
+                <span>Earning</span>
+                <span className="text-emerald-600 text-lg">₹{summaryData.earnings}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSummaryData(null)}
+              className="mt-6 w-full py-3 bg-[#4CAF50] hover:bg-[#43a047] text-white rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all cursor-pointer"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Custom In-App Alert Popup Modal */}
+      {infoPopup && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[28px] max-w-sm w-full p-6 shadow-2xl border border-gray-150 flex flex-col items-center text-center relative animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-orange-50 text-[#ff7448] flex items-center justify-center mb-4 shadow-sm">
+              <ShieldAlert size={36} className="stroke-[2.5]" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900">{infoPopup.title}</h3>
+            <p className="text-xs text-gray-500 mt-2 px-2 leading-relaxed">
+              {infoPopup.message}
+            </p>
+
+            <button
+              onClick={() => setInfoPopup(null)}
+              className="mt-6 w-full py-3 bg-[#ff7448] hover:bg-[#e05e30] text-white rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all cursor-pointer"
+            >
+              OK, Got it
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

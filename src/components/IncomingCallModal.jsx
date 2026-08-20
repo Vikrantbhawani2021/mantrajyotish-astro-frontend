@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Check, X, Clock, Calendar, MapPin, User, Sparkles, Phone, Video, Mic } from "lucide-react";
+import { Check, X, Clock, Calendar, MapPin, User, Sparkles, Phone, Video, Mic, ShieldAlert } from "lucide-react";
 import { acceptCallApi, rejectCallApi } from "../config/api";
 import { acceptCallRequest, rejectCallRequest } from "../services/socket";
 
 export default function IncomingCallModal({ request, onAccept, onDecline }) {
   const [timeLeft, setTimeLeft] = useState(30);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorAlert, setErrorAlert] = useState(null);
 
   const callId = request?.callId || request?.sessionId || request?._id || request?.id || "";
   const user = request?.user || {};
@@ -28,13 +29,18 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
     if (isProcessing) return;
     setIsProcessing(true);
     try {
+      // 1. Call REST API first to verify session is still valid/PENDING
+      const res = await acceptCallApi(callId, request);
+      if (res && res.success === false) {
+        setErrorAlert(res.message || "This call has been cancelled by the user.");
+        return;
+      }
+      const agoraData = res?.data?.agora || res?.agora || {};
+      const sessionData = res?.data?.session || res?.session || {};
+      // 2. Only emit accept event if successful
       if (callId) {
         acceptCallRequest(callId, callType);
       }
-      const res = await acceptCallApi(callId, request);
-      const agoraData = res?.data?.agora || res?.agora || {};
-      const sessionData = res?.data?.session || res?.session || {};
-
       const merged = {
         ...request,
         ...sessionData,
@@ -43,11 +49,10 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
         appId: agoraData.appId || request.appId || "",
         channelName: agoraData.channelName || sessionData.channelName || request.channelName || ""
       };
-
       onAccept(merged);
     } catch (err) {
       console.error("Error accepting call:", err);
-      onAccept(request);
+      setErrorAlert("This call request is no longer active or was cancelled.");
     } finally {
       setIsProcessing(false);
     }
@@ -176,6 +181,33 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
         </div>
 
       </div>
+
+      {/* Custom Alert Modal */}
+      {errorAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-[28px] max-w-sm w-full p-6 shadow-2xl border border-gray-150 flex flex-col items-center text-center relative animate-scale-up">
+            <div className="w-16 h-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4 shadow-sm">
+              <ShieldAlert size={36} className="stroke-[2.5]" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900">Call Cancelled</h3>
+            <p className="text-xs text-gray-500 mt-2 px-2 leading-relaxed">
+              {errorAlert}
+            </p>
+
+            <button
+              onClick={() => {
+                setErrorAlert(null);
+                onDecline(callId);
+              }}
+              className="mt-6 w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all cursor-pointer"
+            >
+              OK, Got it
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

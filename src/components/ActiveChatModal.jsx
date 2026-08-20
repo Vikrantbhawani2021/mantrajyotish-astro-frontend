@@ -15,6 +15,7 @@ export default function ActiveChatModal({ session, onClose }) {
   const textareaRef = useRef(null);
   const chatContainerRef = useRef(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
   const handleScroll = () => {
     if (!chatContainerRef.current) return;
@@ -33,13 +34,45 @@ export default function ActiveChatModal({ session, onClose }) {
   // Determine if this session is already completed (Read-Only Mode)
   const isReadOnly = session?.status === "COMPLETED" || session?.status === "ENDED" || session?.status === "CLOSED" || session?.status === "REJECTED" || session?.status === "CANCELLED" || false;
 
+  const hasInitialScrollRef = useRef(false);
+  const secondsElapsedRef = useRef(0);
+  secondsElapsedRef.current = secondsElapsed;
+
+  const currentEarningsRef = useRef(0);
+
   // Auto-scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (isSmooth = true) => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ 
+        behavior: isSmooth ? "smooth" : "auto", 
+        block: "end"
+      });
+    }, 100);
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length > 0) {
+      if (!hasInitialScrollRef.current) {
+        scrollToBottom(false);
+        hasInitialScrollRef.current = true;
+      } else {
+        const lastMsg = messages[messages.length - 1];
+        const typeUpper = String(lastMsg?.senderType || lastMsg?.role || "").toUpperCase();
+        const sentByMe = typeUpper === "ASTROLOGER" || typeUpper === "ASTRO" || (lastMsg?.senderId && String(lastMsg.senderId) === String(astroId));
+        
+        let isAtBottom = true;
+        if (chatContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+          // If the user has scrolled up past 300px from the bottom, isAtBottom is false
+          isAtBottom = scrollHeight - scrollTop - clientHeight <= 300;
+        }
+        
+        // Only auto-scroll to bottom if user is already at the bottom or sent the message
+        if (isAtBottom || sentByMe) {
+          scrollToBottom(true);
+        }
+      }
+    }
   }, [messages, isUserTyping]);
 
   // Initial messages load & Session timer
@@ -154,7 +187,14 @@ export default function ActiveChatModal({ session, onClose }) {
 
         unsubEnded = subscribeSocketEvent("chatEnded", (data) => {
           console.log("🔴 Chat Session Ended Event Received - Closing modal immediately:", data);
-          onClose();
+          const finalEarning = Number(data?.session?.astrologerEarnings || data?.astrologerEarnings || currentEarningsRef.current).toFixed(2);
+          const finalSecs = data?.session?.totalDurationSeconds || data?.totalDurationSeconds || secondsElapsedRef.current;
+          onClose({
+            clientName: user?.name || "Client User",
+            type: "Chat",
+            duration: formatTimer(finalSecs),
+            earnings: finalEarning
+          });
         });
 
         // Fallback status & message polling (polls backend every 2.5s to check status and sync chat history)
@@ -313,17 +353,29 @@ export default function ActiveChatModal({ session, onClose }) {
   };
 
   const handleEndChat = async () => {
-    if (window.confirm(`Are you sure you want to end this chat session? (Session ID: ${sessionId})`)) {
+    if (window.confirm(`Are you sure you want to end this chat session?`)) {
       try {
-        await endChatApi(sessionId);
+        const res = await endChatApi(sessionId);
         endChatSession(sessionId);
         localStorage.setItem("lastEndedChatSessionId", sessionId);
-        alert(`Chat Session Ended Successfully!\n\nSession ID: ${sessionId}\nDuration: ${formatTimer(secondsElapsed)}\nTotal Earnings: ₹${currentEarnings}`);
+        
+        const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || currentEarnings).toFixed(2);
+        const finalSecs = res?.data?.totalDurationSeconds || res?.totalDurationSeconds || secondsElapsed;
+        
+        onClose({
+          clientName: user?.name || "Client User",
+          type: "Chat",
+          duration: formatTimer(finalSecs),
+          earnings: finalEarning
+        });
       } catch (err) {
         console.error("Error ending chat:", err);
-        alert(`Error ending chat: ${err.message || err}`);
-      } finally {
-        onClose();
+        onClose({
+          clientName: user?.name || "Client User",
+          type: "Chat",
+          duration: formatTimer(secondsElapsed),
+          earnings: Number(currentEarnings).toFixed(2)
+        });
       }
     }
   };
@@ -345,6 +397,7 @@ export default function ActiveChatModal({ session, onClose }) {
   const currentEarnings = isReadOnly && totalAmt > 0
     ? totalAmt.toFixed(2)
     : (elapsedMinutes * perMinuteRate).toFixed(2);
+  currentEarningsRef.current = currentEarnings;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-[#F3F4F6] animate-fade-in">
@@ -403,7 +456,7 @@ export default function ActiveChatModal({ session, onClose }) {
 
               {!isReadOnly && (
                 <button
-                  onClick={handleEndChat}
+                  onClick={() => setShowEndConfirm(true)}
                   className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md shadow-red-600/10 flex-shrink-0"
                   title="End Chat"
                 >
@@ -533,16 +586,6 @@ export default function ActiveChatModal({ session, onClose }) {
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 bg-gradient-to-b from-gray-50/50 to-gray-100/30 relative"
         >
-          {showScrollBottom && (
-            <button 
-              type="button"
-              onClick={scrollToBottom}
-              className="absolute bottom-6 right-6 z-40 bg-white text-[#ff5c33] hover:bg-gray-50 border border-gray-200 p-2 rounded-full shadow-md flex items-center justify-center cursor-pointer transition-all active:scale-90"
-              title="Scroll to Bottom"
-            >
-              <ChevronDown size={18} strokeWidth={3} />
-            </button>
-          )}
           {messages.map((msg, i) => {
             if (msg.senderType === "SYSTEM") {
               return (
@@ -590,6 +633,18 @@ export default function ActiveChatModal({ session, onClose }) {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Floating Scroll to Bottom button - fixed above the send input bar */}
+        {showScrollBottom && (
+          <button 
+            type="button"
+            onClick={() => scrollToBottom(true)}
+            className="absolute bottom-24 right-6 z-40 bg-white text-[#ff5c33] hover:bg-gray-50 border border-gray-200 p-2.5 rounded-full shadow-lg flex items-center justify-center cursor-pointer transition-all active:scale-90"
+            title="Scroll to Bottom"
+          >
+            <ChevronDown size={18} strokeWidth={3} />
+          </button>
+        )}
+
         {/* Bottom Message Input Bar */}
         {isReadOnly ? (
           <div className="p-4 bg-[#F3F4F6] border-t border-gray-200 flex items-center justify-center sticky bottom-0 z-10 w-full text-center flex-shrink-0">
@@ -632,6 +687,38 @@ export default function ActiveChatModal({ session, onClose }) {
               >
                 <Send size={16} className="fill-white translate-x-[1px]" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* End Chat Confirmation Modal */}
+        {showEndConfirm && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] z-50 flex items-center justify-center p-6 animate-fade-in">
+            <div className="bg-white rounded-[28px] w-full max-w-[320px] p-6 text-center shadow-2xl flex flex-col items-center animate-scale-up">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-4 shadow-sm">
+                <PhoneOff size={32} />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900">End Chat Session?</h4>
+              <p className="text-gray-500 text-xs mt-2 px-2 leading-relaxed text-center">
+                Are you sure you want to end this consultation? This session will close and billing will end immediately.
+              </p>
+              <div className="flex gap-3 w-full mt-6">
+                <button
+                  onClick={() => setShowEndConfirm(false)}
+                  className="flex-1 py-2.5 border border-gray-250 hover:bg-gray-50 rounded-xl text-xs font-bold text-gray-500 active:scale-95 transition-all cursor-pointer"
+                >
+                  No, Continue
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowEndConfirm(false);
+                    await handleEndChat();
+                  }}
+                  className="flex-1 py-2.5 bg-red-550 hover:bg-red-600 rounded-xl text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                >
+                  Yes, End Chat
+                </button>
+              </div>
             </div>
           </div>
         )}

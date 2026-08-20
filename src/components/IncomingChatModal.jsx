@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Check, X, Clock, Calendar, MapPin, User, Sparkles, MessageSquare } from "lucide-react";
+import { Check, X, Clock, Calendar, MapPin, User, Sparkles, MessageSquare, ShieldAlert } from "lucide-react";
 import { acceptChatApi, rejectChatApi } from "../config/api";
 import { acceptChatRequest, joinChatRoom } from "../services/socket";
 
 export default function IncomingChatModal({ request, onAccept, onDecline }) {
   const [timeLeft, setTimeLeft] = useState(30);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorAlert, setErrorAlert] = useState(null);
 
   const sessionId = request?.sessionId || request?._id || request?.id || request?.chatId || "";
   const user = request?.user || {};
@@ -26,17 +27,21 @@ export default function IncomingChatModal({ request, onAccept, onDecline }) {
     if (isProcessing) return;
     setIsProcessing(true);
     try {
-      // 1. Emit socket events to join room and accept chat
+      // 1. Call REST API first to verify session is still valid/PENDING
+      const res = await acceptChatApi(sessionId, request);
+      if (res && res.success === false) {
+        setErrorAlert(res.message || "This request has been cancelled by the user.");
+        return;
+      }
+      // 2. Only join and emit socket if successful
       if (sessionId) {
         joinChatRoom(sessionId);
         acceptChatRequest(sessionId);
       }
-      // 2. Call REST API /api/chat/accept
-      await acceptChatApi(sessionId, request);
       onAccept(request);
     } catch (err) {
       console.error("Error accepting chat:", err);
-      onAccept(request);
+      setErrorAlert("This chat request is no longer active or was cancelled.");
     } finally {
       setIsProcessing(false);
     }
@@ -148,6 +153,32 @@ export default function IncomingChatModal({ request, onAccept, onDecline }) {
             <span>{isProcessing ? "Accepting..." : "Accept"}</span>
           </button>
         </div>
+
+        {/* Custom Alert Modal */}
+        {errorAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+            <div className="bg-white rounded-[28px] max-w-sm w-full p-6 shadow-2xl border border-gray-150 flex flex-col items-center text-center relative animate-scale-up">
+              <div className="w-16 h-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-4 shadow-sm">
+                <ShieldAlert size={36} className="stroke-[2.5]" />
+              </div>
+
+              <h3 className="text-lg font-bold text-gray-900">Request Cancelled</h3>
+              <p className="text-xs text-gray-500 mt-2 px-2 leading-relaxed">
+                {errorAlert}
+              </p>
+
+              <button
+                onClick={() => {
+                  setErrorAlert(null);
+                  onDecline(sessionId);
+                }}
+                className="mt-6 w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-sm shadow-md active:scale-98 transition-all cursor-pointer"
+              >
+                OK, Got it
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

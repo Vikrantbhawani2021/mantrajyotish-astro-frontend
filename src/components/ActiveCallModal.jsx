@@ -23,6 +23,9 @@ export default function ActiveCallModal({ session, onClose }) {
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const durationRef = useRef(0);
+  durationRef.current = duration;
+  const currentEarningsRef = useRef("0.00");
 
   const callId = session?.callId || session?.sessionId || session?._id || session?.id || "";
   const user = session?.user || session?.session?.user || {};
@@ -191,16 +194,33 @@ export default function ActiveCallModal({ session, onClose }) {
   };
 
   const handleEndCall = async () => {
+    let summary = null;
     try {
       if (callId) {
         endCallSession(callId);
       }
-      await endCallApi(callId);
+      const res = await endCallApi(callId);
+      
+      const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || currentEarningsRef.current).toFixed(2);
+      const finalSecs = res?.data?.totalDurationSeconds || res?.totalDurationSeconds || durationRef.current;
+      
+      summary = {
+        clientName: clientName,
+        type: isVideoCall ? "Video Call" : "Audio Call",
+        duration: formatTimer(finalSecs),
+        earnings: finalEarning
+      };
     } catch (err) {
       console.error("Error ending call:", err);
+      summary = {
+        clientName: clientName,
+        type: isVideoCall ? "Video Call" : "Audio Call",
+        duration: formatTimer(durationRef.current),
+        earnings: Number(currentEarningsRef.current).toFixed(2)
+      };
     } finally {
       leaveAgoraCallChannel();
-      onClose();
+      onClose(summary);
     }
   };
 
@@ -217,6 +237,7 @@ export default function ActiveCallModal({ session, onClose }) {
   // Compute live synchronized earnings directly from the elapsed duration
   const elapsedMinutes = Math.max(1, Math.ceil(duration / 60));
   const currentEarnings = (elapsedMinutes * perMinuteRate).toFixed(2);
+  currentEarningsRef.current = currentEarnings;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 text-white overflow-hidden animate-fade-in">
