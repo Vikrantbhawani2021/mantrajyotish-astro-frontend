@@ -513,6 +513,26 @@ export const joinChatRoom = (sessionId) => {
 };
 
 /**
+ * Join specific call room
+ */
+export const joinCallRoom = (sessionId) => {
+  currentRoomSessionId = sessionId;
+  const s = connectSocket();
+  if (s) {
+    console.log("🚪 Joining call room for session:", sessionId);
+    s.emit("join_call_room", { sessionId, roomId: sessionId, callId: sessionId });
+    s.emit("join_room", { sessionId, roomId: sessionId });
+    s.emit("join", sessionId);
+    if (typeof sessionId === "string" || typeof sessionId === "number") {
+      const cleanId = String(sessionId);
+      s.emit("join", `call_${cleanId}`);
+      s.emit("join_room", `call_${cleanId}`);
+      s.emit("join_session", `call_${cleanId}`);
+    }
+  }
+};
+
+/**
  * Send real-time chat message
  */
 export const sendChatMessage = (messageData) => {

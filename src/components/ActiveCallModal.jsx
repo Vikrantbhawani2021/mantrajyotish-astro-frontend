@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, Sparkles, User, ShieldAlert } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, Sparkles, User, ShieldAlert, Calendar, Clock, MapPin } from "lucide-react";
 import { endCallApi } from "../config/api";
-import { endCallSession, subscribeSocketEvent, emitMediaStateChange } from "../services/socket";
+import { endCallSession, subscribeSocketEvent, emitMediaStateChange, joinCallRoom } from "../services/socket";
 import {
   joinAgoraCallChannel,
   playLocalVideoTrack,
@@ -13,7 +13,6 @@ import {
 
 export default function ActiveCallModal({ session, onClose }) {
   const [duration, setDuration] = useState(0);
-  const [earnings, setEarnings] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [peerMediaState, setPeerMediaState] = useState({ isAudioMuted: false, isVideoMuted: false });
@@ -26,11 +25,16 @@ export default function ActiveCallModal({ session, onClose }) {
   const remoteVideoRef = useRef(null);
 
   const callId = session?.callId || session?.sessionId || session?._id || session?.id || "";
-  const user = session?.user || {};
+  const user = session?.user || session?.session?.user || {};
+  
   const clientName = user?.name || (user?.firstname || user?.lastname ? `${user.firstname || ""} ${user.lastname || ""}`.trim() : null) || "Client User";
   const perMinuteRate = Number(session?.perMinuteRate || session?.rate || 25) || 25;
   const callType = (session?.callType || "AUDIO").toUpperCase();
   const isVideoCall = callType === "VIDEO";
+
+  const dob = user?.dob || user?.dateofbirth || "Not Specified";
+  const tob = user?.tob || user?.timeofbirth || "Not Specified";
+  const pob = user?.pob || user?.placeofbirth || "Not Specified";
 
   // Extract Agora Token Details from backend response payload
   const agoraObj = session?.agora || session?.data?.agora || {};
@@ -39,22 +43,33 @@ export default function ActiveCallModal({ session, onClose }) {
   const token = agoraObj.token || session?.rtcToken || session?.token || null;
   const uid = agoraObj.uid ?? 0;
 
-  // 1. Duration & Billing Timer
+  // Format DOB Date format safely (e.g. YYYY-MM-DD -> DD/MM/YYYY)
+  const formatDob = (dateVal) => {
+    if (!dateVal || dateVal === "Not Specified" || dateVal === "N/A") return "Not Specified";
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // 1. Duration Timer
   useEffect(() => {
     const timer = setInterval(() => {
-      setDuration((prev) => {
-        const nextDur = prev + 1;
-        const mins = Math.ceil(nextDur / 60);
-        setEarnings((mins * perMinuteRate).toFixed(2));
-        return nextDur;
-      });
+      setDuration((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [perMinuteRate]);
+  }, []);
 
-  // 2. Initialize Agora RTC Stream
+  // 2. Initialize Agora RTC Stream & Socket Signalling
   useEffect(() => {
     let isMounted = true;
+
+    // Join socket calling room to receive sync events
+    if (callId) {
+      joinCallRoom(callId);
+    }
 
     const initCall = async () => {
       console.log("🎬 Joining Agora Call Channel:", channelName, "AppID:", appId, "Type:", callType);
@@ -110,15 +125,16 @@ export default function ActiveCallModal({ session, onClose }) {
 
     // Socket subscriptions
     const unsubEnded = subscribeSocketEvent("callEnded", (data) => {
-      console.log("🔴 Call ended via socket:", data);
+      console.log("🔴 Call ended via socket event:", data);
       handleEndCall();
     });
 
     const unsubTimerTick = subscribeSocketEvent("timerTick", (data) => {
-      if (data && data.elapsedMinutes !== undefined) {
-        setDuration(data.elapsedMinutes * 60);
-        if (data.totalDeducted !== undefined) {
-          setEarnings(data.totalDeducted.toFixed(2));
+      if (data) {
+        if (data.elapsedMinutes !== undefined) {
+          setDuration(data.elapsedMinutes * 60);
+        } else if (data.elapsedSeconds !== undefined) {
+          setDuration(data.elapsedSeconds);
         }
       }
     });
@@ -188,44 +204,53 @@ export default function ActiveCallModal({ session, onClose }) {
     }
   };
 
-
-  const formatTimer = (sec) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  const formatTimer = (totalSeconds) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Compute live synchronized earnings directly from the elapsed duration
+  const elapsedMinutes = Math.max(1, Math.ceil(duration / 60));
+  const currentEarnings = (elapsedMinutes * perMinuteRate).toFixed(2);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 text-white overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 text-white overflow-hidden animate-fade-in">
       
       {/* Top Header Floating Bar */}
-      <div className="absolute top-0 inset-x-0 z-20 p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between">
+      <div className="absolute top-0 inset-x-0 z-20 p-4 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
             <img
               src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
               alt={clientName}
-              className="w-11 h-11 rounded-full object-cover border-2 border-orange-500"
+              className="w-10 h-10 rounded-full object-cover border border-white/20"
             />
-            <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-black ${isConnected ? "bg-emerald-500" : "bg-yellow-500 animate-ping"}`}></span>
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${isConnected ? "bg-green-500" : "bg-yellow-500 animate-ping"}`}></span>
           </div>
           <div>
-            <h3 className="font-bold text-sm leading-tight text-white">{clientName}</h3>
-            <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <h3 className="font-bold text-xs md:text-sm leading-tight text-white">{clientName}</h3>
+            <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               {isConnected ? "Connected Live" : "Connecting Stream..."}
             </p>
           </div>
         </div>
 
-        {/* Live Duration & Earnings Badge */}
+        {/* Live Duration & Earnings Badges */}
         <div className="flex items-center gap-2">
-          <div className="bg-black/60 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            <span className="font-mono font-bold text-sm tracking-wider">{formatTimer(duration)}</span>
+          {/* Timer Capsule */}
+          <div className="bg-black/45 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span>
+            <span className="font-mono font-bold text-xs tracking-wider text-white">{formatTimer(duration)}</span>
           </div>
-          <div className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold px-3 py-1 rounded-full text-xs">
-            +₹{earnings}
+          {/* Earnings Capsule */}
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-extrabold px-3.5 py-1.5 rounded-full text-xs shadow-md">
+            +₹{currentEarnings}
           </div>
         </div>
       </div>
@@ -246,7 +271,6 @@ export default function ActiveCallModal({ session, onClose }) {
           <span>{clientName} muted {peerMediaState.isAudioMuted ? "microphone" : "video"}</span>
         </div>
       )}
-
 
       {/* MAIN CALL STREAM CONTAINER */}
       <div className="w-full h-full relative flex items-center justify-center bg-gray-950">
@@ -299,13 +323,13 @@ export default function ActiveCallModal({ session, onClose }) {
             
             {/* Audio Pulse Visualizer Animation */}
             <div className="relative flex items-center justify-center">
-              <div className="absolute w-44 h-44 rounded-full bg-orange-500/10 animate-ping"></div>
-              <div className="absolute w-36 h-36 rounded-full bg-orange-500/20 animate-pulse"></div>
-              <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-[#ff7448] via-amber-500 to-[#D53F8C] shadow-2xl z-10">
+              <div className="absolute w-44 h-44 rounded-full bg-[#ff7448]/10 animate-ping"></div>
+              <div className="absolute w-36 h-36 rounded-full bg-[#ff7448]/20 animate-pulse"></div>
+              <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-[#ff7448] via-yellow-500 to-[#D53F8C] shadow-2xl z-10 flex items-center justify-center">
                 <img
                   src={user?.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80"}
                   alt={clientName}
-                  className="w-full h-full rounded-full object-cover border-4 border-gray-950"
+                  className="w-full h-full rounded-full object-cover border-2 border-gray-950"
                 />
               </div>
             </div>
@@ -313,27 +337,27 @@ export default function ActiveCallModal({ session, onClose }) {
             {/* User Info & Audio Status */}
             <div>
               <h2 className="text-2xl font-bold text-white tracking-wide">{clientName}</h2>
-              <div className="mt-2 flex items-center justify-center gap-2 text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-4 py-1 rounded-full">
-                <Volume2 className="w-4 h-4 animate-bounce" />
+              <div className="mt-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-4 py-1.5 rounded-full">
+                <Volume2 className="w-3.5 h-3.5 animate-bounce" />
                 <span>HD Voice Audio Stream Connected</span>
               </div>
             </div>
 
             {/* Birth Details Capsule */}
-            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-xs text-gray-300 flex justify-around">
-              <div>
-                <span className="text-gray-400 block text-[10px]">DOB</span>
-                <span className="font-bold text-white">{user?.dob || "N/A"}</span>
+            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-gray-300 flex justify-around mt-8 shadow-sm">
+              <div className="text-center">
+                <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider mb-1">DOB</span>
+                <span className="font-bold text-white text-xs">{formatDob(dob)}</span>
               </div>
-              <div className="border-r border-white/10"></div>
-              <div>
-                <span className="text-gray-400 block text-[10px]">TOB</span>
-                <span className="font-bold text-white">{user?.tob || "N/A"}</span>
+              <div className="border-r border-white/10 h-8 self-center"></div>
+              <div className="text-center">
+                <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider mb-1">TOB</span>
+                <span className="font-bold text-white text-xs">{tob}</span>
               </div>
-              <div className="border-r border-white/10"></div>
-              <div>
-                <span className="text-gray-400 block text-[10px]">POB</span>
-                <span className="font-bold text-white truncate max-w-[90px] inline-block">{user?.pob || "N/A"}</span>
+              <div className="border-r border-white/10 h-8 self-center"></div>
+              <div className="text-center">
+                <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider mb-1">POB</span>
+                <span className="font-bold text-white text-xs truncate max-w-[100px] inline-block" title={pob}>{pob}</span>
               </div>
             </div>
 
@@ -351,11 +375,11 @@ export default function ActiveCallModal({ session, onClose }) {
           className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl cursor-pointer border ${
             isMuted 
               ? "bg-red-500 text-white border-red-400" 
-              : "bg-white/15 hover:bg-white/25 text-white border-white/20 backdrop-blur-md"
+              : "bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-md"
           }`}
           title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
         >
-          {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          {isMuted ? <MicOff className="w-5.5 h-5.5" /> : <Mic className="w-5.5 h-5.5" />}
         </button>
 
         {/* Toggle Camera (Only for Video Calls) */}
@@ -365,21 +389,21 @@ export default function ActiveCallModal({ session, onClose }) {
             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl cursor-pointer border ${
               isCameraOff 
                 ? "bg-red-500 text-white border-red-400" 
-                : "bg-white/15 hover:bg-white/25 text-white border-white/20 backdrop-blur-md"
+                : "bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-md"
             }`}
             title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
           >
-            {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+            {isCameraOff ? <VideoOff className="w-5.5 h-5.5" /> : <Video className="w-5.5 h-5.5" />}
           </button>
         )}
 
         {/* End Call Button */}
         <button
           onClick={handleEndCall}
-          className="w-16 h-16 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white flex items-center justify-center shadow-2xl shadow-red-900/60 transition-all active:scale-95 cursor-pointer border border-red-400/30"
+          className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-2xl shadow-red-900/60 transition-all active:scale-95 cursor-pointer border border-red-400/30"
           title="End Call"
         >
-          <PhoneOff className="w-7 h-7 fill-white" />
+          <PhoneOff className="w-6.5 h-6.5 fill-white" />
         </button>
 
       </div>

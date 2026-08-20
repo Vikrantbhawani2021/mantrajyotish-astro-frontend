@@ -53,7 +53,6 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
     }
   };
 
-
   const handleDecline = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -73,22 +72,24 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
   if (!request) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-sm bg-gradient-to-b from-gray-900 via-gray-900 to-[#1a111a] text-white rounded-[32px] p-6 border border-pink-500/30 shadow-[0_0_50px_rgba(236,72,153,0.3)] flex flex-col items-center relative overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+      <div className={`w-full max-w-sm bg-gradient-to-b from-gray-900 via-gray-900 ${
+        isVideo ? "to-[#17111c] border-purple-500/30 shadow-[0_0_50px_rgba(159,122,234,0.25)]" : "to-[#0a1815] border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.25)]"
+      } text-white rounded-[32px] p-6 border flex flex-col items-center relative overflow-hidden`}>
         
-        {/* Pulsing Glowing Top Badge */}
-        <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border animate-pulse ${
+        {/* Glowing Top Badge */}
+        <div className={`flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold border animate-pulse ${
           isVideo 
-            ? "bg-purple-500/20 border-purple-500/40 text-purple-300"
-            : "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+            ? "bg-[#9F7AEA]/20 border-[#9F7AEA]/40 text-[#B794F4]"
+            : "bg-[#10B981]/20 border-[#10B981]/40 text-[#34D399]"
         }`}>
-          {isVideo ? <Video className="w-4 h-4 text-purple-400" /> : <Mic className="w-4 h-4 text-emerald-400" />}
+          {isVideo ? <Video className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
           <span>INCOMING {callType} CALL</span>
         </div>
 
         {/* User Image & Ring Timer */}
-        <div className="relative mt-6 mb-4">
-          <div className={`w-28 h-28 rounded-full p-1 shadow-xl flex items-center justify-center animate-bounce-short ${
+        <div className="relative mt-5 mb-4">
+          <div className={`w-24 h-24 rounded-full p-1 shadow-lg flex items-center justify-center ${
             isVideo 
               ? "bg-gradient-to-tr from-purple-500 via-pink-500 to-rose-500" 
               : "bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500"
@@ -101,7 +102,7 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
           </div>
 
           {/* Countdown Badge */}
-          <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-rose-500 to-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border-2 border-gray-900 shadow-lg">
+          <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center font-black text-sm border-2 border-gray-900 shadow-md">
             {timeLeft}s
           </div>
         </div>
@@ -109,12 +110,13 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
         {/* User Name & Rate */}
         <h2 className="text-xl font-bold text-center tracking-tight text-white">{user?.name || "User Client"}</h2>
         <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-gray-300">
-          <span className="bg-emerald-500/20 text-emerald-400 px-3 py-0.5 rounded-full border border-emerald-500/30">
+          <span className="bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
             ₹{perMinuteRate}/min Rate
           </span>
           <span className="text-gray-400">•</span>
-          <span className="text-pink-300 font-bold flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Direct Call
+          <span className={`${isVideo ? "text-purple-300" : "text-emerald-300"} font-bold flex items-center gap-1`}>
+            {isVideo ? <Video className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
+            {isVideo ? "Video Call" : "Audio Call"}
           </span>
         </div>
 
@@ -122,28 +124,28 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
         <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 mt-5 flex flex-col gap-2 text-xs text-gray-300">
           <div className="flex items-center justify-between">
             <span className="text-gray-400 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-pink-400" /> DOB:
+              <Calendar className={`w-3.5 h-3.5 ${isVideo ? "text-purple-400" : "text-emerald-400"}`} /> DOB:
             </span>
             <span className="font-semibold text-white">{user?.dob || "Not Specified"}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-400 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-pink-400" /> TOB:
+              <Clock className={`w-3.5 h-3.5 ${isVideo ? "text-purple-400" : "text-emerald-400"}`} /> TOB:
             </span>
             <span className="font-semibold text-white">{user?.tob || "Not Specified"}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-400 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-pink-400" /> POB:
+              <MapPin className={`w-3.5 h-3.5 ${isVideo ? "text-purple-400" : "text-emerald-400"}`} /> POB:
             </span>
             <span className="font-semibold text-white truncate max-w-[170px]">{user?.pob || "Not Specified"}</span>
           </div>
           {user?.topic && (
             <div className="pt-1.5 mt-1 border-t border-white/10 flex items-center justify-between">
               <span className="text-gray-400 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-pink-400" /> Topic:
+                <User className={`w-3.5 h-3.5 ${isVideo ? "text-purple-400" : "text-emerald-400"}`} /> Topic:
               </span>
-              <span className="font-bold text-pink-400">{user.topic}</span>
+              <span className={`font-bold ${isVideo ? "text-purple-400" : "text-emerald-400"}`}>{user.topic}</span>
             </div>
           )}
         </div>
@@ -153,7 +155,7 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
           <button
             onClick={handleDecline}
             disabled={isProcessing}
-            className="flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 py-3.5 rounded-2xl font-bold transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+            className="flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 py-3 rounded-2xl font-bold transition-all active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <X className="w-5 h-5" />
             <span>Decline</span>
@@ -162,10 +164,14 @@ export default function IncomingCallModal({ request, onAccept, onDecline }) {
           <button
             onClick={handleAccept}
             disabled={isProcessing}
-            className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-3.5 rounded-2xl font-extrabold shadow-lg shadow-emerald-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+            className={`flex items-center justify-center gap-2 bg-gradient-to-r ${
+              isVideo 
+                ? "from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 shadow-purple-900/40" 
+                : "from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-emerald-900/40"
+            } text-white py-3 rounded-2xl font-extrabold shadow-lg transition-all active:scale-95 cursor-pointer disabled:opacity-50`}
           >
-            <Phone className="w-5 h-5 fill-white" />
-            <span>{isProcessing ? "Connecting..." : "Accept"}</span>
+            <Check className="w-5 h-5" />
+            <span>{isProcessing ? "Accepting..." : "Accept"}</span>
           </button>
         </div>
 

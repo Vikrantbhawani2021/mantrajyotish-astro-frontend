@@ -1,6 +1,6 @@
 import { Bell, Wallet } from "lucide-react";
 import { useState, useEffect } from "react";
-import { toggleOnlineApi, checkApprovalStatusApi } from "../config/api";
+import { toggleOnlineApi, checkApprovalStatusApi, BACKEND_URL } from "../config/api";
 import { subscribeSocketEvent } from "../services/socket";
 import WalletModal from "./WalletModal";
 
@@ -42,7 +42,7 @@ export default function Header() {
       const token = localStorage.getItem("token") || localStorage.getItem("astrologerToken") || "";
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      const res = await fetch(`/api/wallet/balance?${queryParams.toString()}`, { headers });
+      const res = await fetch(`${BACKEND_URL}/api/wallet/balance?${queryParams.toString()}`, { headers });
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.data) {
