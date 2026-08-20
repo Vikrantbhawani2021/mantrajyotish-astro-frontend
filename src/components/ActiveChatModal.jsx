@@ -30,6 +30,8 @@ export default function ActiveChatModal({ session, onClose }) {
   const user = session?.user || {};
   const perMinuteRate = Number(session?.perMinuteRate || session?.rate || session?.price || session?.charge || user?.perMinuteRate || user?.rate || 20) || 20;
 
+  // Determine if this session is already completed (Read-Only Mode)
+  const isReadOnly = session?.status === "COMPLETED" || session?.status === "ENDED" || session?.status === "CLOSED" || session?.status === "REJECTED" || session?.status === "CANCELLED" || false;
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -43,12 +45,14 @@ export default function ActiveChatModal({ session, onClose }) {
   // Initial messages load & Session timer
   useEffect(() => {
     let timer;
-    if (sessionId) {
-      // 1. Join chat room on Socket.io and emit accept_chat_request
-      joinChatRoom(sessionId);
-      acceptChatRequest(sessionId);
+    let statusChecker;
+    let unsubMsg = () => {};
+    let unsubTimer = () => {};
+    let unsubWarning = () => {};
+    let unsubEnded = () => {};
 
-      // 2. Load initial chat messages if any
+    if (sessionId) {
+      // 1. Load initial chat messages if any
       fetchChatMessagesApi(sessionId).then((existingMsgs) => {
         if (existingMsgs && existingMsgs.length > 0) {
           setMessages(existingMsgs);
@@ -65,171 +69,189 @@ export default function ActiveChatModal({ session, onClose }) {
         }
       });
 
-      // Start local duration counter with correct offset
-      let initialSeconds = 0;
-      const sessionStart = session?.startTime || session?.createdAt;
-      if (sessionStart) {
-        const start = new Date(sessionStart).getTime();
-        const now = Date.now();
-        if (!isNaN(start) && now > start) {
-          initialSeconds = Math.floor((now - start) / 1000);
-        }
-      }
-      setSecondsElapsed(initialSeconds);
+      if (!isReadOnly) {
+        // Join chat room on Socket.io and emit accept_chat_request
+        joinChatRoom(sessionId);
+        acceptChatRequest(sessionId);
 
-      timer = setInterval(() => {
-        setSecondsElapsed((prev) => prev + 1);
-      }, 1000);
-    }
-
-    // Subscribe to Socket events
-    const unsubMsg = subscribeSocketEvent("receiveMessage", (msg) => {
-      if (!msg) return;
-      console.log("📩 New Message Received in Active Chat:", msg);
-      
-      const normalizedMsg = {
-        _id: msg._id || msg.id || "msg_" + Date.now(),
-        id: msg._id || msg.id || "msg_" + Date.now(),
-        sessionId: msg.sessionId || msg.chatId || sessionId,
-        senderId: msg.senderId || msg.sender,
-        senderType: (msg.senderType || msg.role || "user").toUpperCase(),
-        text: msg.text || msg.message || msg.content || "",
-        message: msg.text || msg.message || msg.content || "",
-        content: msg.text || msg.message || msg.content || "",
-        createdAt: msg.createdAt || new Date().toISOString(),
-        timestamp: msg.timestamp || (msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-      };
-
-      setMessages((prev) => {
-        try {
-          if (!Array.isArray(prev)) return [normalizedMsg];
-          const msgId = String(normalizedMsg._id || normalizedMsg.id || "");
-          const msgText = (normalizedMsg.text || "").toString().trim();
-          const normSender = (normalizedMsg.senderType || "").toUpperCase();
-
-          // 1. Avoid duplicate by ID
-          if (msgId && prev.some((m) => m && String(m._id || m.id || "") === msgId)) return prev;
-
-          // 2. Deduplicate by matching senderType & exact text
-          const matchIndex = prev.findIndex(
-            (m) =>
-              m &&
-              String(m.senderType || m.role || "").toUpperCase() === normSender &&
-              (m.text || m.message || "").toString().trim() === msgText
-          );
-
-          if (matchIndex !== -1) {
-            const updated = [...prev];
-            updated[matchIndex] = normalizedMsg;
-            return updated;
+        // Start local duration counter with correct offset
+        let initialSeconds = 0;
+        const sessionStart = session?.startTime || session?.createdAt;
+        if (sessionStart) {
+          const start = new Date(sessionStart).getTime();
+          const now = Date.now();
+          if (!isNaN(start) && now > start) {
+            initialSeconds = Math.floor((now - start) / 1000);
           }
-
-          return [...prev, normalizedMsg];
-        } catch (e) {
-          console.error("Error parsing receiveMessage socket callback:", e);
-          return prev;
         }
-      });
-    });
+        setSecondsElapsed(initialSeconds);
 
-    const unsubTimer = subscribeSocketEvent("timerTick", (data) => {
-      if (data?.elapsedSeconds !== undefined) {
-        setSecondsElapsed(data.elapsedSeconds);
-      } else if (data?.elapsedMinutes !== undefined) {
-        setSecondsElapsed(data.elapsedMinutes * 60);
-      }
-    });
+        timer = setInterval(() => {
+          setSecondsElapsed((prev) => prev + 1);
+        }, 1000);
 
-    const unsubWarning = subscribeSocketEvent("walletWarning", (data) => {
-      setWalletWarning(data?.message || "User's wallet balance is running low!");
-    });
+        // Subscribe to Socket events
+        unsubMsg = subscribeSocketEvent("receiveMessage", (msg) => {
+          if (!msg) return;
+          console.log("📩 New Message Received in Active Chat:", msg);
+          
+          const normalizedMsg = {
+            _id: msg._id || msg.id || "msg_" + Date.now(),
+            id: msg._id || msg.id || "msg_" + Date.now(),
+            sessionId: msg.sessionId || msg.chatId || sessionId,
+            senderId: msg.senderId || msg.sender,
+            senderType: (msg.senderType || msg.role || "user").toUpperCase(),
+            text: msg.text || msg.message || msg.content || "",
+            message: msg.text || msg.message || msg.content || "",
+            content: msg.text || msg.message || msg.content || "",
+            createdAt: msg.createdAt || new Date().toISOString(),
+            timestamp: msg.timestamp || (msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+          };
 
-    const unsubEnded = subscribeSocketEvent("chatEnded", (data) => {
-      console.log("🔴 Chat Session Ended Event Received - Closing modal immediately:", data);
-      onClose();
-    });
+          setMessages((prev) => {
+            try {
+              if (!Array.isArray(prev)) return [normalizedMsg];
+              const msgId = String(normalizedMsg._id || normalizedMsg.id || "");
+              const msgText = (normalizedMsg.text || "").toString().trim();
+              const normSender = (normalizedMsg.senderType || "").toUpperCase();
 
-    // Fallback status & message polling (polls backend every 2.5s to check status and sync chat history)
-    const statusChecker = setInterval(async () => {
-      if (sessionId) {
-        // Sync latest messages from DB safely without duplicating
-        fetchChatMessagesApi(sessionId).then((existingMsgs) => {
-          if (existingMsgs && existingMsgs.length > 0) {
-            setMessages((prev) => {
-              if (!Array.isArray(prev) || prev.length === 0) return existingMsgs;
-              let updated = [...prev];
-              let hasChanges = false;
+              // 1. Avoid duplicate by ID
+              if (msgId && prev.some((m) => m && String(m._id || m.id || "") === msgId)) return prev;
 
-              for (const m of existingMsgs) {
-                if (!m) continue;
-                const mId = String(m._id || m.id || "");
-                const mText = (m.text || m.message || "").toString().trim();
-                const mSender = String(m.senderType || "").toUpperCase();
+              // 2. Deduplicate by matching senderType & exact text
+              const matchIndex = prev.findIndex(
+                (m) =>
+                  m &&
+                  String(m.senderType || m.role || "").toUpperCase() === normSender &&
+                  (m.text || m.message || "").toString().trim() === msgText
+              );
 
-                const existsById = updated.some((p) => String(p._id || p.id || "") === mId);
-                if (existsById) continue;
-
-                const matchIdx = updated.findIndex(
-                  (p) =>
-                    String(p.senderType || p.role || "").toUpperCase() === mSender &&
-                    (p.text || p.message || "").toString().trim() === mText
-                );
-
-                if (matchIdx !== -1) {
-                  updated[matchIdx] = m;
-                  hasChanges = true;
-                } else {
-                  updated.push(m);
-                  hasChanges = true;
-                }
+              if (matchIndex !== -1) {
+                const updated = [...prev];
+                updated[matchIndex] = normalizedMsg;
+                return updated;
               }
 
-              return hasChanges ? updated : prev;
-            });
+              return [...prev, normalizedMsg];
+            } catch (e) {
+              console.error("Error parsing receiveMessage socket callback:", e);
+              return prev;
+            }
+          });
+        });
+
+        unsubTimer = subscribeSocketEvent("timerTick", (data) => {
+          if (data?.elapsedSeconds !== undefined) {
+            setSecondsElapsed(data.elapsedSeconds);
+          } else if (data?.elapsedMinutes !== undefined) {
+            setSecondsElapsed(data.elapsedMinutes * 60);
           }
         });
 
-        try {
-          const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
-          const backendBase = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "https://mantrajyotish-backend.vercel.app").replace(/\/$/, "").replace(/\/api$/, "");
-          const urls = [
-            `${backendBase}/api/chat/details/${sessionId}`
-          ];
+        unsubWarning = subscribeSocketEvent("walletWarning", (data) => {
+          setWalletWarning(data?.message || "User's wallet balance is running low!");
+        });
 
-          for (const url of urls) {
-            const res = await fetch(url, {
-              headers: {
-                ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        unsubEnded = subscribeSocketEvent("chatEnded", (data) => {
+          console.log("🔴 Chat Session Ended Event Received - Closing modal immediately:", data);
+          onClose();
+        });
+
+        // Fallback status & message polling (polls backend every 2.5s to check status and sync chat history)
+        statusChecker = setInterval(async () => {
+          if (sessionId) {
+            // Sync latest messages from DB safely without duplicating
+            fetchChatMessagesApi(sessionId).then((existingMsgs) => {
+              if (existingMsgs && existingMsgs.length > 0) {
+                setMessages((prev) => {
+                  if (!Array.isArray(prev) || prev.length === 0) return existingMsgs;
+                  let updated = [...prev];
+                  let hasChanges = false;
+
+                  for (const m of existingMsgs) {
+                    if (!m) continue;
+                    const mId = String(m._id || m.id || "");
+                    const mText = (m.text || m.message || "").toString().trim();
+                    const mSender = String(m.senderType || "").toUpperCase();
+
+                    const existsById = updated.some((p) => String(p._id || p.id || "") === mId);
+                    if (existsById) continue;
+
+                    const matchIdx = updated.findIndex(
+                      (p) =>
+                        String(p.senderType || p.role || "").toUpperCase() === mSender &&
+                        (p.text || p.message || "").toString().trim() === mText
+                    );
+
+                    if (matchIdx !== -1) {
+                      updated[matchIdx] = m;
+                      hasChanges = true;
+                    } else {
+                      updated.push(m);
+                      hasChanges = true;
+                    }
+                  }
+
+                  return hasChanges ? updated : prev;
+                });
               }
-            }).catch(() => null);
+            });
 
-            if (res && res.ok) {
-              const data = await res.json().catch(() => null);
-              const status = data?.status || data?.session?.status || data?.data?.status;
-              const isActive = data?.isActive ?? data?.session?.isActive;
+            try {
+              const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+              const backendBase = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "https://mantrajyotish-backend.vercel.app").replace(/\/$/, "").replace(/\/api$/, "");
+              const urls = [
+                `${backendBase}/api/chat/details/${sessionId}`
+              ];
 
-              if (status === "COMPLETED" || status === "ENDED" || status === "REJECTED" || status === "CLOSED" || isActive === false) {
-                console.log("🔴 Session status marked ended on backend - Closing modal immediately");
-                onClose();
-                break;
+              for (const url of urls) {
+                const res = await fetch(url, {
+                  headers: {
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {})
+                  }
+                }).catch(() => null);
+
+                if (res && res.ok) {
+                  const data = await res.json().catch(() => null);
+                  const status = data?.status || data?.session?.status || data?.data?.status;
+                  const isActive = data?.isActive ?? data?.session?.isActive;
+
+                  if (status === "COMPLETED" || status === "ENDED" || status === "REJECTED" || status === "CLOSED" || isActive === false) {
+                    console.log("🔴 Session status marked ended on backend - Closing modal immediately");
+                    onClose();
+                    break;
+                  }
+                }
               }
+            } catch (err) {
+              // ignore error
             }
           }
-        } catch (err) {
-          // ignore error
+        }, 2500);
+      } else {
+        // Read-only Mode: initialize seconds elapsed to total duration or diff
+        let finalSeconds = 0;
+        if (session?.endTime && session?.startTime) {
+          const diff = Math.floor((new Date(session.endTime) - new Date(session.startTime)) / 1000);
+          finalSeconds = diff > 0 ? diff : (session.totalDurationMinutes || 0) * 60;
+        } else {
+          finalSeconds = (session?.totalDurationMinutes || 0) * 60;
         }
+        setSecondsElapsed(finalSeconds);
       }
-    }, 2500);
+    }
 
     return () => {
-      clearInterval(timer);
-      clearInterval(statusChecker);
-      unsubMsg();
-      unsubTimer();
-      unsubWarning();
-      unsubEnded();
+      if (timer) clearInterval(timer);
+      if (statusChecker) clearInterval(statusChecker);
+      if (!isReadOnly) {
+        unsubMsg();
+        unsubTimer();
+        unsubWarning();
+        unsubEnded();
+      }
     };
-  }, [sessionId]);
+  }, [sessionId, isReadOnly]);
 
 
   const targetUserId = user?._id || user?.id || session?.userId || (typeof session?.user === "string" ? session.user : "") || "";
@@ -319,7 +341,10 @@ export default function ActiveChatModal({ session, onClose }) {
 
   // Calculate current earnings
   const elapsedMinutes = Math.max(1, Math.ceil(secondsElapsed / 60));
-  const currentEarnings = (elapsedMinutes * perMinuteRate).toFixed(2);
+  const totalAmt = Number(session?.totalAmountDeducted || session?.astrologerEarnings || 0);
+  const currentEarnings = isReadOnly && totalAmt > 0
+    ? totalAmt.toFixed(2)
+    : (elapsedMinutes * perMinuteRate).toFixed(2);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-[#F3F4F6] animate-fade-in">
@@ -335,18 +360,18 @@ export default function ActiveChatModal({ session, onClose }) {
                   alt={user?.name}
                   className="w-10 h-10 rounded-full object-cover border border-white/20"
                 />
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#ff8f6c] rounded-full"></span>
+                <span className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#ff8f6c] rounded-full ${isReadOnly ? "bg-gray-400" : "bg-green-500"}`}></span>
               </div>
               <div className="min-w-0">
                 <h2 className="font-bold text-white text-xs md:text-sm leading-tight truncate">
                   {user?.name || "Client User"}
                 </h2>
                 <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                  <span className="text-[9px] text-orange-100 font-bold uppercase tracking-wide truncate">
-                    Online
+                  <span className={`text-[9px] font-bold uppercase tracking-wide truncate ${isReadOnly ? "text-orange-200" : "text-orange-100"}`}>
+                    {isReadOnly ? "Ended" : "Online"}
                   </span>
                   <span className="text-[9px] text-orange-200/80">•</span>
-                  <span className="text-[9px] text-orange-100 font-bold truncate">
+                  <span className={`text-[9px] font-bold truncate ${isReadOnly ? "text-orange-200" : "text-orange-100"}`}>
                     Rate: ₹{perMinuteRate}/min
                   </span>
                 </div>
@@ -359,7 +384,7 @@ export default function ActiveChatModal({ session, onClose }) {
                 <Clock size={10} className="opacity-95" />
                 <span>{formatTimer(secondsElapsed)}</span>
               </div>
-              <span className="text-[7px] text-orange-100/80 font-bold uppercase mt-0.5 tracking-wide">Time Elapsed</span>
+              <span className="text-[7px] text-orange-100/80 font-bold uppercase mt-0.5 tracking-wide">{isReadOnly ? "Total Time" : "Time Elapsed"}</span>
             </div>
 
             {/* Earnings & End Button Section */}
@@ -376,13 +401,15 @@ export default function ActiveChatModal({ session, onClose }) {
                 </div>
               </div>
 
-              <button
-                onClick={handleEndChat}
-                className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md shadow-red-600/10 flex-shrink-0"
-                title="End Chat"
-              >
-                <PhoneOff size={14} strokeWidth={2.5} />
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={handleEndChat}
+                  className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md shadow-red-600/10 flex-shrink-0"
+                  title="End Chat"
+                >
+                  <PhoneOff size={14} strokeWidth={2.5} />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -564,41 +591,50 @@ export default function ActiveChatModal({ session, onClose }) {
         </div>
 
         {/* Bottom Message Input Bar */}
-        <div className="p-4 bg-[#FAFAFA] border-t border-gray-100 flex items-center sticky bottom-0 z-10 w-full">
-          <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 p-1.5 pl-2 pr-2 flex items-end">
-            <button className="w-9 h-9 rounded-full bg-[#FFF2EC] hover:bg-[#ffe5d9] flex items-center justify-center text-[#FF6F3D] cursor-pointer active:scale-95 transition-all flex-shrink-0">
-              <Plus size={18} strokeWidth={2.5} />
-            </button>
-
-            <textarea
-              ref={textareaRef}
-              placeholder="Type a message..."
-              value={inputMessage}
-              rows={1}
-              onChange={(e) => {
-                handleInputChange(e);
-                e.target.style.height = "36px";
-                const newHeight = Math.min(e.target.scrollHeight, 100);
-                e.target.style.height = `${newHeight}px`;
-                e.target.style.overflowY = e.target.scrollHeight > 100 ? "auto" : "hidden";
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              className="flex-1 outline-none text-sm bg-transparent placeholder-gray-400 ml-3 resize-none max-h-[100px] py-1.5 text-gray-800"
-              style={{ height: "36px", minHeight: "36px", lineHeight: "24px", overflowY: "hidden" }}
-            />
-            <button
-              onClick={handleSend}
-              className="ml-2 w-9 h-9 rounded-full bg-[#FF6F3D] hover:bg-[#e05e30] flex items-center justify-center text-white cursor-pointer active:scale-95 transition-all shadow-md shadow-orange-500/20 flex-shrink-0"
-            >
-              <Send size={16} className="fill-white translate-x-[1px]" />
-            </button>
+        {isReadOnly ? (
+          <div className="p-4 bg-[#F3F4F6] border-t border-gray-200 flex items-center justify-center sticky bottom-0 z-10 w-full text-center flex-shrink-0">
+            <span className="text-xs font-bold text-gray-500 bg-white/80 border border-gray-200 px-5 py-2.5 rounded-full shadow-xs flex items-center gap-2">
+              <ShieldAlert size={14} className="text-gray-400" />
+              This chat session has ended (Read-Only Mode)
+            </span>
           </div>
-        </div>
+        ) : (
+          <div className="p-4 bg-[#FAFAFA] border-t border-gray-100 flex items-center sticky bottom-0 z-10 w-full">
+            <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 p-1.5 pl-2 pr-2 flex items-end">
+              <button className="w-9 h-9 rounded-full bg-[#FFF2EC] hover:bg-[#ffe5d9] flex items-center justify-center text-[#FF6F3D] cursor-pointer active:scale-95 transition-all flex-shrink-0">
+                <Plus size={18} strokeWidth={2.5} />
+              </button>
+
+              <textarea
+                ref={textareaRef}
+                placeholder="Type a message..."
+                value={inputMessage}
+                rows={1}
+                onChange={(e) => {
+                  handleInputChange(e);
+                  e.target.style.height = "36px";
+                  const newHeight = Math.min(e.target.scrollHeight, 100);
+                  e.target.style.height = `${newHeight}px`;
+                  e.target.style.overflowY = e.target.scrollHeight > 100 ? "auto" : "hidden";
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                className="flex-1 outline-none text-sm bg-transparent placeholder-gray-400 ml-3 resize-none max-h-[100px] py-1.5 text-gray-800"
+                style={{ height: "36px", minHeight: "36px", lineHeight: "24px", overflowY: "hidden" }}
+              />
+              <button
+                onClick={handleSend}
+                className="ml-2 w-9 h-9 rounded-full bg-[#FF6F3D] hover:bg-[#e05e30] flex items-center justify-center text-white cursor-pointer active:scale-95 transition-all shadow-md shadow-orange-500/20 flex-shrink-0"
+              >
+                <Send size={16} className="fill-white translate-x-[1px]" />
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
