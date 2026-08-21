@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, Sparkles, User, ShieldAlert, Calendar, Clock, MapPin, MessageSquare, Send, X, Copy, ChevronDown, ChevronUp } from "lucide-react";
-import { endCallApi, fetchChatMessagesApi, sendChatMessageApi } from "../config/api";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, Sparkles, User, ShieldAlert, Calendar, Clock, MapPin, MessageSquare, Send, X, Copy, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { endCallApi, fetchChatMessagesApi, sendChatMessageApi, uploadImageApi } from "../config/api";
 import { endCallSession, subscribeSocketEvent, emitMediaStateChange, joinCallRoom, sendChatMessage } from "../services/socket";
 import {
   joinAgoraCallChannel,
@@ -285,6 +285,42 @@ export default function ActiveCallModal({ session, onClose }) {
       }
     } catch (err) {
       console.error("Error sending message during call:", err);
+    }
+  };
+
+  const handleAstroFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const storedUser = localStorage.getItem("astrologerUser") || localStorage.getItem("astrologer");
+      let astroId = "";
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          astroId = parsed._id || parsed.id;
+        } catch (err) {}
+      }
+      const imageUrl = await uploadImageApi(file);
+      if (imageUrl) {
+        const msgPayload = {
+          _id: Math.random().toString(),
+          sessionId: callId,
+          chatId: callId,
+          senderId: astroId,
+          sender: astroId,
+          senderType: "ASTROLOGER",
+          text: "",
+          mediaUrl: imageUrl,
+          messageType: "image",
+          timestamp: new Date().toISOString()
+        };
+        sendChatMessage(msgPayload);
+        const targetUserId = user?._id || user?.id || "";
+        await sendChatMessageApi(callId, "", targetUserId, astroId, "image", imageUrl);
+        setMessages((prev) => [...prev, msgPayload]);
+      }
+    } catch (err) {
+      console.error("Error uploading call chat file:", err);
     }
   };
 
@@ -625,7 +661,7 @@ export default function ActiveCallModal({ session, onClose }) {
             }`}
             title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
           >
-            {isMuted ? <MicOff className="w-5.5 h-5.5" /> : <Mic className="w-5.5 h-5.5" />}
+            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
 
           {/* Toggle Camera (Only for Video Calls) */}
@@ -639,7 +675,7 @@ export default function ActiveCallModal({ session, onClose }) {
               }`}
               title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
             >
-              {isCameraOff ? <VideoOff className="w-5.5 h-5.5" /> : <Video className="w-5.5 h-5.5" />}
+              {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
             </button>
           )}
 
@@ -653,7 +689,7 @@ export default function ActiveCallModal({ session, onClose }) {
             }`}
             title="Toggle Chat"
           >
-            <MessageSquare className="w-5.5 h-5.5" />
+            <MessageSquare className="w-6 h-6" />
           </button>
 
           {/* End Call Button */}
@@ -662,7 +698,7 @@ export default function ActiveCallModal({ session, onClose }) {
             className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all active:scale-95 cursor-pointer border border-red-400/30"
             title="End Call"
           >
-            <PhoneOff className="w-6.5 h-6.5 fill-white" />
+            <PhoneOff className="w-6 h-6 fill-white" />
           </button>
         </div>
 
@@ -712,7 +748,13 @@ export default function ActiveCallModal({ session, onClose }) {
                         ? "bg-[#FF7448] text-white rounded-tr-none" 
                         : "bg-[#202737] text-white rounded-tl-none border border-white/5"
                     }`}>
-                      <span className="pr-4">{msg.text || msg.message || msg.content}</span>
+                      {msg.mediaUrl ? (
+                        <div className="rounded-lg overflow-hidden max-w-[200px] mb-1">
+                          <img src={msg.mediaUrl} alt="Uploaded" className="w-full h-auto object-cover max-h-48" />
+                        </div>
+                      ) : (
+                        <span className="pr-4">{msg.text || msg.message || msg.content}</span>
+                      )}
                       <span className={`text-[8.5px] font-mono self-end mt-0.5 -mr-1 ${isAstro ? "text-white/70" : "text-white/40"}`}>
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                       </span>
@@ -726,6 +768,20 @@ export default function ActiveCallModal({ session, onClose }) {
 
           {/* Input Bar */}
           <div className="p-4 border-t border-white/10 bg-[#111625]/60 flex items-center gap-3">
+            <input 
+              type="file" 
+              id="in-call-astro-upload" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleAstroFileUpload} 
+            />
+            <label 
+              htmlFor="in-call-astro-upload"
+              className="w-11 h-11 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-full flex items-center justify-center cursor-pointer shadow-md active:scale-95 transition-all border border-white/5 flex-shrink-0"
+              title="Upload Image"
+            >
+              <Plus className="w-4.5 h-4.5" />
+            </label>
             <input 
               type="text" 
               placeholder="Type a message..."

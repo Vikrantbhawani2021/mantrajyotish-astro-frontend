@@ -531,16 +531,14 @@ export const checkPendingRequestsApi = async () => {
 /**
  * Sends a message via REST API (fallback if socket is unavailable)
  */
-export const sendChatMessageApi = async (sessionId, text, targetUserId = "", customSenderId = "") => {
+export const sendChatMessageApi = async (sessionId, text, targetUserId = "", customSenderId = "", messageType = "text", mediaUrl = null) => {
   try {
     const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
     const user = JSON.parse(localStorage.getItem("astrologerUser") || "{}");
     const astroId = customSenderId || user._id || user.id || user.astrologerId || "";
-
     const urls = [
       `${SOCKET_URL}/api/chat/send`
     ];
-
     const bodyData = {
       sessionId,
       chatId: sessionId,
@@ -558,9 +556,10 @@ export const sendChatMessageApi = async (sessionId, text, targetUserId = "", cus
       text,
       message: text,
       content: text,
-      msg: text
+      msg: text,
+      messageType,
+      mediaUrl
     };
-
     for (const url of urls) {
       const res = await fetch(url, {
         method: "POST",
@@ -570,7 +569,6 @@ export const sendChatMessageApi = async (sessionId, text, targetUserId = "", cus
         },
         body: JSON.stringify(bodyData)
       }).catch(() => null);
-
       if (res && res.ok) {
         return await res.json().catch(() => ({ success: true }));
       }
@@ -578,7 +576,6 @@ export const sendChatMessageApi = async (sessionId, text, targetUserId = "", cus
   } catch (err) {
     console.error("Error sending chat message API:", err);
   }
-  return { success: true };
 };
 
 /**

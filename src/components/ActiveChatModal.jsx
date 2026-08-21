@@ -353,30 +353,28 @@ export default function ActiveChatModal({ session, onClose }) {
   };
 
   const handleEndChat = async () => {
-    if (window.confirm(`Are you sure you want to end this chat session?`)) {
-      try {
-        const res = await endChatApi(sessionId);
-        endChatSession(sessionId);
-        localStorage.setItem("lastEndedChatSessionId", sessionId);
-        
-        const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || currentEarnings).toFixed(2);
-        const finalSecs = res?.data?.totalDurationSeconds || res?.totalDurationSeconds || secondsElapsed;
-        
-        onClose({
-          clientName: user?.name || "Client User",
-          type: "Chat",
-          duration: formatTimer(finalSecs),
-          earnings: finalEarning
-        });
-      } catch (err) {
-        console.error("Error ending chat:", err);
-        onClose({
-          clientName: user?.name || "Client User",
-          type: "Chat",
-          duration: formatTimer(secondsElapsed),
-          earnings: Number(currentEarnings).toFixed(2)
-        });
-      }
+    try {
+      const res = await endChatApi(sessionId);
+      endChatSession(sessionId);
+      localStorage.setItem("lastEndedChatSessionId", sessionId);
+      
+      const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || currentEarnings).toFixed(2);
+      const finalSecs = res?.data?.totalDurationSeconds || res?.totalDurationSeconds || secondsElapsed;
+      
+      onClose({
+        clientName: user?.name || "Client User",
+        type: "Chat",
+        duration: formatTimer(finalSecs),
+        earnings: finalEarning
+      });
+    } catch (err) {
+      console.error("Error ending chat:", err);
+      onClose({
+        clientName: user?.name || "Client User",
+        type: "Chat",
+        duration: formatTimer(secondsElapsed),
+        earnings: Number(currentEarnings).toFixed(2)
+      });
     }
   };
 
