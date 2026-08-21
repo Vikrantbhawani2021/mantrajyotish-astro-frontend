@@ -95,7 +95,9 @@ export const toggleOnlineApi = async (nextStatus) => {
   try {
     const token = localStorage.getItem("token") || localStorage.getItem("astrologerToken") || "";
 
-    console.log(`Toggling online status to ${nextStatus} via PUT:`, API_ENDPOINTS.TOGGLE_ONLINE);
+    if (import.meta.env.DEV) {
+      console.log(`Toggling online status to ${nextStatus} via PUT:`, API_ENDPOINTS.TOGGLE_ONLINE);
+    }
 
     // Backend route uses PUT method for /api/astro/toggle-online
     const response = await fetch(API_ENDPOINTS.TOGGLE_ONLINE, {
@@ -111,19 +113,25 @@ export const toggleOnlineApi = async (nextStatus) => {
       })
     });
 
-    const data = await response.json().catch(() => ({}));
-    console.log("Toggle Online API Response:", response.status, data);
+    if (!response.ok) {
+      throw new Error(`Failed to toggle online status: ${response.status}`);
+    }
 
-    if (response.ok && (data.success || data.isOnline !== undefined || data.data?.isOnline !== undefined)) {
+    const data = await response.json().catch(() => ({}));
+    if (import.meta.env.DEV) {
+      console.log("Toggle Online API Response:", response.status, data);
+    }
+
+    if (data.success || data.isOnline !== undefined || data.data?.isOnline !== undefined) {
       const finalStatus = data.data?.isOnline ?? data.isOnline ?? nextStatus;
       localStorage.setItem("astro_is_online", String(finalStatus));
       return finalStatus;
     }
+    return nextStatus;
   } catch (err) {
     console.error("Error toggling online status:", err);
+    throw err;
   }
-
-  return nextStatus;
 };
 
 /**
@@ -213,7 +221,9 @@ export const checkApprovalStatusApi = async () => {
 
     if (response && response.ok) {
       const raw = await response.json().catch(() => ({}));
-      console.log("Approval Status API Response:", raw);
+      if (import.meta.env.DEV) {
+        console.log("Approval Status API Response:", raw);
+      }
 
       // Normalize: backend returns top-level fields on this endpoint
       const normalized = {

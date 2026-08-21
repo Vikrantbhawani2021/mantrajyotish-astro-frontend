@@ -6,6 +6,7 @@ import Forgot from "./pages/Forgot";
 import ResetPassword from "./pages/ResetPassword";
 import CreateProfile from "./pages/CreateProfile";
 import PendingApproval from "./pages/PendingApproval";
+import { toggleOnlineApi } from "./config/api";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("astrologerToken");
@@ -50,9 +51,19 @@ function PublicRoute({ children }) {
 function AppContent() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // 1. Instantly set local status state to offline
+    localStorage.setItem("astro_is_online", "false");
+    // 2. Update backend to offline immediately before clearing tokens
+    try {
+      await toggleOnlineApi(false);
+    } catch (e) {
+      console.warn("Status offline update skipped on logout:", e.message);
+    }
+    // 3. Clear storage and redirect
     localStorage.removeItem("astrologerToken");
     localStorage.removeItem("astrologerUser");
+    localStorage.removeItem("astro_is_online");
     navigate("/login");
   };
 

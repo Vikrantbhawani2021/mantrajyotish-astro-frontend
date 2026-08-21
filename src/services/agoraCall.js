@@ -1,4 +1,5 @@
 import AgoraRTC from "agora-rtc-sdk-ng";
+AgoraRTC.setLogLevel(3);
 
 // Agora RTC Client Singleton Instance
 let rtcClient = null;
@@ -109,7 +110,10 @@ export const joinAgoraCallChannel = async ({
       try {
         [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
           { encoderConfig: "speech_standard" },
-          { encoderConfig: "720p_1" }
+          { 
+            encoderConfig: "720p_1",
+            facingMode: "user"
+          }
         );
         await client.publish([localAudioTrack, localVideoTrack]);
         console.log("📹 Local Microphone & Camera tracks published!");

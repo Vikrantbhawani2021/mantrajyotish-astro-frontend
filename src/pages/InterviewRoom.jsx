@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import AgoraRTC from "agora-rtc-sdk-ng";
+AgoraRTC.setLogLevel(3);
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, ArrowLeft, Volume2, ShieldCheck } from "lucide-react";
 
 export default function InterviewRoom({ appId, channelName, token, uid, onLeave }) {

@@ -714,7 +714,7 @@ export default function ActiveChatModal({ session, onClose }) {
                     setShowEndConfirm(false);
                     await handleEndChat();
                   }}
-                  className="flex-1 py-2.5 bg-red-550 hover:bg-red-600 rounded-xl text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
                 >
                   Yes, End Chat
                 </button>

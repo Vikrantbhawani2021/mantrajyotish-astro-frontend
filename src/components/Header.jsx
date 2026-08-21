@@ -6,7 +6,6 @@ import WalletModal from "./WalletModal";
 
 export default function Header() {
   const [online, setOnline] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
 
@@ -96,20 +95,24 @@ export default function Header() {
     : (astroUser.skills || "Vedic Astrology Expert");
 
   const handleToggleStatus = async () => {
+    const previousState = online;
     const nextState = !online;
-    setLoading(true);
+    // 1. Optimistically update UI state & localStorage immediately
+    setOnline(nextState);
+    localStorage.setItem("astro_is_online", String(nextState));
     try {
       const updatedStatus = await toggleOnlineApi(nextState);
-      if (typeof updatedStatus === "boolean") {
+      // If the backend returns a different state, sync the UI with it
+      if (typeof updatedStatus === "boolean" && updatedStatus !== nextState) {
         setOnline(updatedStatus);
         localStorage.setItem("astro_is_online", String(updatedStatus));
       }
     } catch (err) {
       console.error("Toggle online status error:", err);
-      setOnline(online); // Revert switch state on error
+      // 2. Revert to the previous state if the API fails
+      setOnline(previousState);
+      localStorage.setItem("astro_is_online", String(previousState));
       alert("Only approved astrologers can switch to Online mode.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -174,10 +177,9 @@ export default function Header() {
           {/* Toggle */}
           <button
             onClick={handleToggleStatus}
-            disabled={loading}
             className={`relative w-[58px] h-[32px] rounded-full transition-all duration-300 cursor-pointer ${
               online ? "bg-green-500" : "bg-[#DDD9E8]"
-            } ${loading ? "opacity-80 cursor-wait" : ""}`}
+            }`}
           >
             <div
               className={`absolute top-[4px] w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${

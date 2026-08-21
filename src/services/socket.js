@@ -3,6 +3,7 @@ import { SOCKET_URL } from "../config/api";
 
 let socket = null;
 let currentRoomSessionId = null;
+let heartbeatInterval = null;
 const listeners = {
   incomingRequest: [],
   incomingCallRequest: [],
@@ -167,7 +168,9 @@ export const getAstroId = () => {
  */
 const emitAstroRegistration = (s, astroId) => {
   if (!s || !astroId) return;
-  console.log("📡 Emitting Astrologer room registration for Astro ID:", astroId);
+  if (import.meta.env.DEV) {
+    console.log("📡 Emitting Astrologer room registration for Astro ID:", astroId);
+  }
 
   // Object payloads
   s.emit("register_user", { userId: astroId, astrologerId: astroId, id: astroId });
@@ -195,14 +198,16 @@ export const connectSocket = () => {
   const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
   const astroId = getAstroId();
 
-  if (socket && socket.connected) {
-    if (astroId) {
+  if (socket) {
+    if (socket.connected && astroId) {
       emitAstroRegistration(socket, astroId);
     }
     return socket;
   }
 
-  console.log("🔌 Initializing socket connection for Astro ID:", astroId);
+  if (import.meta.env.DEV) {
+    console.log("🔌 Initializing socket connection for Astro ID:", astroId);
+  }
 
   socket = io(SOCKET_URL, {
     transports: ["websocket", "polling"],
@@ -225,14 +230,28 @@ export const connectSocket = () => {
 
   socket.on("connect", () => {
     const currentAstroId = getAstroId();
-    console.log("⚡ Socket.io connected to backend:", socket.id, "Astro ID:", currentAstroId);
+    if (import.meta.env.DEV) {
+      console.log("⚡ Socket.io connected to backend:", socket.id, "Astro ID:", currentAstroId);
+    }
 
     if (currentAstroId) {
       emitAstroRegistration(socket, currentAstroId);
+      
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      heartbeatInterval = setInterval(() => {
+        if (socket && socket.connected) {
+          socket.emit("presence:heartbeat");
+          if (import.meta.env.DEV) {
+            console.log("📡 Emitted presence:heartbeat to server");
+          }
+        }
+      }, 10000);
     }
 
     if (currentRoomSessionId) {
-      console.log("⚡ Auto re-joining active session room:", currentRoomSessionId);
+      if (import.meta.env.DEV) {
+        console.log("⚡ Auto re-joining active session room:", currentRoomSessionId);
+      }
       socket.emit("join_session", { sessionId: currentRoomSessionId, roomId: currentRoomSessionId, chatId: currentRoomSessionId });
       socket.emit("join_call_room", { sessionId: currentRoomSessionId, roomId: currentRoomSessionId });
       socket.emit("join_room", { sessionId: currentRoomSessionId, roomId: currentRoomSessionId });
@@ -243,7 +262,7 @@ export const connectSocket = () => {
 
   // Catch-all listener to ensure NO backend event is ever dropped or missed
   socket.onAny((eventName, data) => {
-    console.log("🔥 [Socket Catch-All Event Received]:", eventName, data);
+    // console.log("🔥 [Socket Catch-All Event Received]:", eventName, data);
 
     // If event name explicitly contains call/video/audio keywords (and not chat) and isn't already handled
     const evtLower = String(eventName || "").toLowerCase();
