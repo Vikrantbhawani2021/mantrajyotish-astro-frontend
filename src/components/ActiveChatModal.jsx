@@ -399,7 +399,7 @@ export default function ActiveChatModal({ session, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-[#F3F4F6] animate-fade-in">
-      <div className="w-full max-w-[430px] md:max-w-[850px] h-screen bg-[#F8F9FD] flex flex-col overflow-hidden shadow-2xl relative">
+      <div className="w-full max-w-[430px] md:max-w-[850px] h-full bg-[#F8F9FD] flex flex-col overflow-hidden shadow-2xl relative">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-[#ff8f6c] to-[#ff5c33] border-b border-orange-500/20 px-3 py-3 sticky top-0 z-20 text-white shadow-md">
