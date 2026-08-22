@@ -786,3 +786,28 @@ export const checkPendingCallRequestsApi = async () => {
   }
   return null;
 };
+
+/**
+ * Updates astrologer profile information (PUT /api/astro/update/:id)
+ * @param {string} astroId 
+ * @param {Object} payload 
+ */
+export const updateAstroProfileApi = async (astroId, payload) => {
+  try {
+    const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+    const response = await fetch(`${BACKEND_URL}/api/astro/update/${astroId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "x-auth-token": token,
+        "token": token
+      },
+      body: JSON.stringify(payload)
+    });
+    return await response.json();
+  } catch (err) {
+    console.error("Error updating astrologer profile:", err);
+    throw err;
+  }
+};

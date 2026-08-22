@@ -9,7 +9,7 @@ import ActiveChatModal from "../components/ActiveChatModal";
 import IncomingCallModal from "../components/IncomingCallModal";
 import ActiveCallModal from "../components/ActiveCallModal";
 import { connectSocket, subscribeSocketEvent, triggerDemoIncomingRequest, triggerDemoIncomingCallRequest } from "../services/socket";
-import { checkPendingCallRequestsApi, fetchCallHistoryApi } from "../config/api";
+import { checkPendingCallRequestsApi, fetchCallHistoryApi, updateAstroProfileApi } from "../config/api";
 
 
 
@@ -697,6 +697,10 @@ function ProfileView({ onBack, onLogout }) {
       : (savedAstro.specialization || savedAstro.skills || "Vedic Astrology, Kundli, Love & Career")
   );
 
+  const [chatPrice, setChatPrice] = useState(savedAstro.chatPrice || 20);
+  const [audioPrice, setAudioPrice] = useState(savedAstro.audioCallPrice || 25);
+  const [videoPrice, setVideoPrice] = useState(savedAstro.videoCallPrice || 40);
+
   const fields = [
     {
       label: "Email",
@@ -768,6 +772,27 @@ function ProfileView({ onBack, onLogout }) {
       icon: Sparkles,
       type: "text",
     },
+    {
+      label: "Chat Rate (₹/min)",
+      value: chatPrice,
+      setValue: setChatPrice,
+      icon: MessageSquare,
+      type: "number",
+    },
+    {
+      label: "Audio Call Rate (₹/min)",
+      value: audioPrice,
+      setValue: setAudioPrice,
+      icon: Phone,
+      type: "number",
+    },
+    {
+      label: "Video Call Rate (₹/min)",
+      value: videoPrice,
+      setValue: setVideoPrice,
+      icon: Video,
+      type: "number",
+    },
   ];
 
   const handleAvatarChange = async (e) => {
@@ -785,6 +810,33 @@ function ProfileView({ onBack, onLogout }) {
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (isEditing) {
+      const payload = {
+        name,
+        email,
+        phone,
+        experience: experience.replace(/[^0-9]/g, ""),
+        chatPrice: Number(chatPrice) || 20,
+        audioCallPrice: Number(audioPrice) || 25,
+        videoCallPrice: Number(videoPrice) || 40,
+        specialization: skills.split(",").map(s => s.trim()),
+      };
+      try {
+        const res = await updateAstroProfileApi(savedAstro._id, payload);
+        if (res.success && res.data) {
+          // Save updated profile back to localStorage
+          localStorage.setItem("astrologerUser", JSON.stringify(res.data));
+          localStorage.setItem("user", JSON.stringify(res.data));
+          alert("Profile updated successfully!");
+        }
+      } catch (err) {
+        alert("Failed to save changes: " + err.message);
+      }
+    }
+    setIsEditing(!isEditing);
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-gradient-to-b from-[#ff8f6c] to-[#ff5c33] overflow-hidden">
       {/* Top Header Row */}
@@ -794,7 +846,7 @@ function ProfileView({ onBack, onLogout }) {
         </button>
         <h1 className="text-[20px] font-semibold text-center">Astrologer Profile</h1>
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={handleSaveProfile}
           className="absolute right-6 bg-white text-[#ff7448] px-4 py-1.5 rounded-full text-[14px] font-extrabold transition-all active:scale-95 cursor-pointer shadow-md hover:bg-white/95"
         >
           {isEditing ? "Save" : "Edit"}
