@@ -263,13 +263,15 @@ export const connectSocket = () => {
   // Catch-all listener to ensure NO backend event is ever dropped or missed
   socket.onAny((eventName, data) => {
     // console.log("🔥 [Socket Catch-All Event Received]:", eventName, data);
-
     // If event name explicitly contains call/video/audio keywords (and not chat) and isn't already handled
     const evtLower = String(eventName || "").toLowerCase();
+    // Exclude status, state, typing, ringing, and acknowledgment events from triggering the incoming call modal
+    const excludedKeywords = ["accepted", "ended", "rejected", "sent", "state", "ringing", "media", "peer", "typing", "presence", "heartbeat"];
+    const isExcluded = excludedKeywords.some(keyword => evtLower.includes(keyword));
     if (
       (evtLower.includes("call") || evtLower.includes("video") || evtLower.includes("audio")) &&
       !evtLower.includes("chat") &&
-      !evtLower.includes("accepted") && !evtLower.includes("ended") && !evtLower.includes("rejected")
+      !isExcluded
     ) {
       if (data && (data.callId || data.sessionId || data._id || data.id || data.user || data.data)) {
         handleIncomingCall(data);
