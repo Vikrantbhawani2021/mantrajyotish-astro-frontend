@@ -350,13 +350,17 @@ export default function ActiveCallModal({ session, onClose }) {
       }
       const res = await endCallApi(callId);
       
-      const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || currentEarningsRef.current).toFixed(2);
+      const finalGross = Number(res?.data?.totalAmountDeducted || res?.totalAmountDeducted || currentEarningsRef.current).toFixed(2);
+      const finalPlatFee = Number(res?.data?.platformFee || res?.platformFee || (Number(currentEarningsRef.current) * 0.40)).toFixed(2);
+      const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || (Number(currentEarningsRef.current) * 0.60)).toFixed(2);
       const finalSecs = res?.data?.totalDurationSeconds || res?.totalDurationSeconds || durationRef.current;
       
       summary = {
         clientName: clientName,
         type: isVideoCall ? "Video Call" : "Audio Call",
         duration: formatTimer(finalSecs),
+        totalDeducted: finalGross,
+        platformFee: finalPlatFee,
         earnings: finalEarning
       };
     } catch (err) {
@@ -365,7 +369,9 @@ export default function ActiveCallModal({ session, onClose }) {
         clientName: clientName,
         type: isVideoCall ? "Video Call" : "Audio Call",
         duration: formatTimer(durationRef.current),
-        earnings: Number(currentEarningsRef.current).toFixed(2)
+        totalDeducted: Number(currentEarningsRef.current).toFixed(2),
+        platformFee: (Number(currentEarningsRef.current) * 0.40).toFixed(2),
+        earnings: (Number(currentEarningsRef.current) * 0.60).toFixed(2)
       };
     } finally {
       leaveAgoraCallChannel();

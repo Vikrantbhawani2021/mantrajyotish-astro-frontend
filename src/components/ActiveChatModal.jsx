@@ -187,12 +187,16 @@ export default function ActiveChatModal({ session, onClose }) {
 
         unsubEnded = subscribeSocketEvent("chatEnded", (data) => {
           console.log("🔴 Chat Session Ended Event Received - Closing modal immediately:", data);
-          const finalEarning = Number(data?.session?.astrologerEarnings || data?.astrologerEarnings || currentEarningsRef.current).toFixed(2);
+          const finalGross = Number(data?.session?.totalAmountDeducted || data?.totalAmountDeducted || currentEarningsRef.current).toFixed(2);
+          const finalPlatFee = Number(data?.session?.platformFee || data?.platformFee || (Number(currentEarningsRef.current) * 0.40)).toFixed(2);
+          const finalEarning = Number(data?.session?.astrologerEarnings || data?.astrologerEarnings || (Number(currentEarningsRef.current) * 0.60)).toFixed(2);
           const finalSecs = data?.session?.totalDurationSeconds || data?.totalDurationSeconds || secondsElapsedRef.current;
           onClose({
             clientName: user?.name || "Client User",
             type: "Chat",
             duration: formatTimer(finalSecs),
+            totalDeducted: finalGross,
+            platformFee: finalPlatFee,
             earnings: finalEarning
           });
         });
@@ -358,13 +362,17 @@ export default function ActiveChatModal({ session, onClose }) {
       endChatSession(sessionId);
       localStorage.setItem("lastEndedChatSessionId", sessionId);
       
-      const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || currentEarnings).toFixed(2);
+      const finalGross = Number(res?.data?.totalAmountDeducted || res?.totalAmountDeducted || currentEarnings).toFixed(2);
+      const finalPlatFee = Number(res?.data?.platformFee || res?.platformFee || (Number(currentEarnings) * 0.40)).toFixed(2);
+      const finalEarning = Number(res?.data?.astrologerEarnings || res?.astrologerEarnings || (Number(currentEarnings) * 0.60)).toFixed(2);
       const finalSecs = res?.data?.totalDurationSeconds || res?.totalDurationSeconds || secondsElapsed;
       
       onClose({
         clientName: user?.name || "Client User",
         type: "Chat",
         duration: formatTimer(finalSecs),
+        totalDeducted: finalGross,
+        platformFee: finalPlatFee,
         earnings: finalEarning
       });
     } catch (err) {
@@ -373,7 +381,9 @@ export default function ActiveChatModal({ session, onClose }) {
         clientName: user?.name || "Client User",
         type: "Chat",
         duration: formatTimer(secondsElapsed),
-        earnings: Number(currentEarnings).toFixed(2)
+        totalDeducted: Number(currentEarnings).toFixed(2),
+        platformFee: (Number(currentEarnings) * 0.40).toFixed(2),
+        earnings: (Number(currentEarnings) * 0.60).toFixed(2)
       });
     }
   };
