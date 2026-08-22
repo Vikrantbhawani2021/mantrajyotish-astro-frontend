@@ -774,24 +774,27 @@ function ProfileView({ onBack, onLogout }) {
     },
     {
       label: "Chat Rate (₹/min)",
-      value: chatPrice,
-      setValue: setChatPrice,
+      value: 9,
+      setValue: () => {},
       icon: MessageSquare,
       type: "number",
+      disabled: true,
     },
     {
       label: "Audio Call Rate (₹/min)",
-      value: audioPrice,
-      setValue: setAudioPrice,
+      value: 9,
+      setValue: () => {},
       icon: Phone,
       type: "number",
+      disabled: true,
     },
     {
       label: "Video Call Rate (₹/min)",
-      value: videoPrice,
-      setValue: setVideoPrice,
+      value: 9,
+      setValue: () => {},
       icon: Video,
       type: "number",
+      disabled: true,
     },
   ];
 
@@ -927,7 +930,8 @@ function ProfileView({ onBack, onLogout }) {
                       type={f.type}
                       value={f.value}
                       onChange={(e) => f.setValue(e.target.value)}
-                      className="w-full bg-transparent border-b border-[#ff7448]/25 focus:border-[#ff7448] focus:outline-none text-[15px] font-bold text-gray-850 pb-0.5 mt-0.5"
+                      disabled={f.disabled}
+                      className="w-full bg-transparent border-b border-[#ff7448]/25 focus:border-[#ff7448] focus:outline-none text-[15px] font-bold text-gray-850 pb-0.5 mt-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   ) : (
                     <p className="text-[16px] font-bold text-gray-850 mt-0.5 truncate">{f.value}</p>
