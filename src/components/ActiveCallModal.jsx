@@ -191,10 +191,10 @@ export default function ActiveCallModal({ session, onClose }) {
 
     const unsubTimerTick = subscribeSocketEvent("timerTick", (data) => {
       if (data) {
-        if (data.elapsedMinutes !== undefined) {
-          setDuration(data.elapsedMinutes * 60);
-        } else if (data.elapsedSeconds !== undefined) {
+        if (data.elapsedSeconds !== undefined) {
           setDuration(data.elapsedSeconds);
+        } else if (data.elapsedMinutes !== undefined) {
+          setDuration(data.elapsedMinutes * 60);
         }
       }
     });
