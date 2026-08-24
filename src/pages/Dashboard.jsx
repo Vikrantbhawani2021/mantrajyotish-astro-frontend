@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../config/axiosInstance";
 import { fetchCallStateApi } from "../config/api";
 import { ArrowLeft, ChevronDown, Mic, Video, MessageSquare, Radio, Mail, Phone, Briefcase, User, Mars, Sliders, Building, Compass, MapPin, Sparkles, LogOut, Camera, Loader2, Play, MessageCircle, CheckCircle, ShieldAlert } from "lucide-react";
@@ -962,6 +962,7 @@ function ProfileView({ onBack, onLogout }) {
 }
 
 export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState("grid");
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(initialOpenWithdraw);
   const [summaryData, setSummaryData] = useState(null);
