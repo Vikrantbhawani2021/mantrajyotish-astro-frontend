@@ -1008,24 +1008,24 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
 
   const { sessionId } = useParams();
   useEffect(() => {
-    if (sessionId) {
-      // Fetch call session by URL parameter
-      const loadSession = async () => {
-        try {
-          const res = await axiosInstance.get(`/api/calls/${sessionId}`);
-          const session = res.data.session || res.data.data || res.data;
-          if (window.location.pathname.includes("/chat")) {
-            setActiveChatSession(session);
-          } else {
-            setActiveCallSession(session);
-          }
-        } catch (err) {
-          console.error("Failed to load secure call session:", err);
-          alert("Could not load call session: unauthorized or invalid link");
+    // Skip if a session is already active (established via socket - the normal flow)
+    if (!sessionId || activeCallSession || activeChatSession) return;
+    const loadSession = async () => {
+      try {
+        const res = await axiosInstance.get(`/api/calls/${sessionId}`);
+        const session = res.data.session || res.data.data || res.data;
+        if (!session || typeof session !== 'object') return;
+        if (window.location.pathname.includes('/chat')) {
+          setActiveChatSession(session);
+        } else {
+          setActiveCallSession(session);
         }
-      };
-      loadSession();
-    }
+      } catch (err) {
+        // Non-blocking: call is already active via socket - suppress alert
+        console.warn('Could not restore session from URL (non-blocking):', err?.response?.status, sessionId);
+      }
+    };
+    loadSession();
   }, [sessionId]);
 
   useEffect(() => {
@@ -1359,4 +1359,4 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
     </div>
   );
 }
-
+
