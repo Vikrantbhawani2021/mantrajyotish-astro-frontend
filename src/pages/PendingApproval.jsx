@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, Headphones, Hourglass, Check, Calendar, 
   Clock, Video, MessageSquare, Send, Info, 
@@ -21,6 +22,7 @@ const LS_KEY_SENT   = "interview_request_sent";
 const LS_KEY_DATE   = "astro_interview_date";
 const LS_KEY_TIME   = "astro_interview_time";
 const LS_KEY_LINK   = "astro_meeting_link";
+const LS_KEY_RAW_DATE = "astro_interview_raw_date";
 
 function getSavedViewState(isRejected, initialViewState) {
   if (isRejected) return "reschedule";
@@ -35,6 +37,15 @@ function getSavedViewState(isRejected, initialViewState) {
 
 export default function PendingApproval({ onBackToProfile, onGoToDashboard, initialViewState, isRejected = false }) {
   const [viewState, setViewState] = useState(() => getSavedViewState(isRejected, initialViewState));
+  const navigate = useNavigate();
+
+  // Redirect to login if token is missing (same browser login verification)
+  useEffect(() => {
+    const token = localStorage.getItem("astrologerToken") || localStorage.getItem("token") || "";
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   // Form states
   const [selectedDate, setSelectedDate] = useState(localStorage.getItem(LS_KEY_DATE) || "");
@@ -51,7 +62,7 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [forceUnlockJoin, setForceUnlockJoin] = useState(false);
-  const [rawInterviewDate, setRawInterviewDate] = useState(null);
+  const [rawInterviewDate, setRawInterviewDate] = useState(localStorage.getItem(LS_KEY_RAW_DATE) || null);
   const [meetingLink, setMeetingLink] = useState(localStorage.getItem(LS_KEY_LINK) || "");
 
   // Agora states
@@ -101,6 +112,10 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
           // Clear interview flow flags
           localStorage.removeItem(LS_KEY_VIEW);
           localStorage.removeItem(LS_KEY_SENT);
+          localStorage.removeItem(LS_KEY_DATE);
+          localStorage.removeItem(LS_KEY_TIME);
+          localStorage.removeItem(LS_KEY_LINK);
+          localStorage.removeItem(LS_KEY_RAW_DATE);
           onGoToDashboard();
           return;
         }
@@ -120,16 +135,23 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
 
           if (dateRaw) {
             setRawInterviewDate(dateRaw);
+            localStorage.setItem(LS_KEY_RAW_DATE, dateRaw);
             const d = new Date(dateRaw);
-            const fDate = dateStr || d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
-            const fTime = timeStr || d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+            const fDate = d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+            const fTime = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
             setSelectedDate(fDate);
             setSelectedTime(fTime);
             localStorage.setItem(LS_KEY_DATE, fDate);
             localStorage.setItem(LS_KEY_TIME, fTime);
-          } else if (dateStr) {
-            setSelectedDate(dateStr);
-            localStorage.setItem(LS_KEY_DATE, dateStr);
+          } else {
+            if (dateStr) {
+              setSelectedDate(dateStr);
+              localStorage.setItem(LS_KEY_DATE, dateStr);
+            }
+            if (timeStr) {
+              setSelectedTime(timeStr);
+              localStorage.setItem(LS_KEY_TIME, timeStr);
+            }
           }
 
           if (link) {
@@ -204,6 +226,16 @@ export default function PendingApproval({ onBackToProfile, onGoToDashboard, init
   };
 
   const isJoinable = isJoinTimeAvailable();
+
+  // Auto-join if '?join=true' or '?autojoin=true' is in the URL and the meeting is active
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("join") === "true" || params.get("autojoin") === "true") {
+      if (isJoinable && !inVideoCall && agoraChannel && agoraToken) {
+        setInVideoCall(true);
+      }
+    }
+  }, [isJoinable, inVideoCall, agoraChannel, agoraToken]);
 
   const visibleSteps = APPROVAL_STEPS.filter(step => {
     if (step.key === "confirmed")  return viewState === "confirmed";

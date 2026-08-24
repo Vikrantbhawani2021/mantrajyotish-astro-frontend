@@ -235,3 +235,35 @@ export const leaveAgoraCallChannel = async () => {
     console.error("Error leaving Agora channel:", err);
   }
 };
+
+/**
+ * Switch current local microphone device
+ */
+export const switchMicrophone = async (deviceId) => {
+  if (localAudioTrack) {
+    await localAudioTrack.setDevice(deviceId);
+    console.log(`🎙️ Switched microphone to: ${deviceId}`);
+    return true;
+  }
+  return false;
+};
+/**
+ * Switch current local camera device
+ */
+export const switchCamera = async (deviceId) => {
+  if (localVideoTrack) {
+    await localVideoTrack.setDevice(deviceId);
+    console.log(`📹 Switched camera to: ${deviceId}`);
+    return true;
+  }
+  return false;
+};
+/**
+ * Retrieve active audio and video tracks
+ */
+export const getLocalTracks = () => {
+  return {
+    localAudioTrack,
+    localVideoTrack
+  };
+};

@@ -2,13 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, Sparkles, User, ShieldAlert, Calendar, Clock, MapPin, MessageSquare, Send, X, Copy, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { endCallApi, fetchChatMessagesApi, sendChatMessageApi, uploadImageApi } from "../config/api";
 import { endCallSession, subscribeSocketEvent, emitMediaStateChange, joinCallRoom, sendChatMessage } from "../services/socket";
+import AgoraRTC from "agora-rtc-sdk-ng";
 import {
   joinAgoraCallChannel,
   playLocalVideoTrack,
   playRemoteVideoTrack,
   toggleMicrophoneMute,
   toggleCameraState,
-  leaveAgoraCallChannel
+  leaveAgoraCallChannel,
+  getLocalTracks,
+  switchMicrophone,
+  switchCamera
 } from "../services/agoraCall";
 
 export default function ActiveCallModal({ session, onClose }) {
@@ -27,6 +31,15 @@ export default function ActiveCallModal({ session, onClose }) {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const chatEndRef = useRef(null);
+
+  const [microphones, setMicrophones] = useState([]);
+  const [cameras, setCameras] = useState([]);
+  const [speakers, setSpeakers] = useState([]);
+  const [selectedMic, setSelectedMic] = useState("");
+  const [selectedCamera, setSelectedCamera] = useState("");
+  const [selectedSpeaker, setSelectedSpeaker] = useState("");
+  const [volumeBoost, setVolumeBoost] = useState(100);
+  const [showSettings, setShowSettings] = useState(false);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -71,6 +84,24 @@ export default function ActiveCallModal({ session, onClose }) {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        const mics = await AgoraRTC.getMicrophones();
+        const cams = await AgoraRTC.getCameras();
+        const plays = await AgoraRTC.getPlaybackDevices();
+        setMicrophones(mics);
+        setCameras(cams);
+        setSpeakers(plays);
+      } catch (err) {
+        console.error("Error querying media devices:", err);
+      }
+    };
+    if (isConnected) {
+      fetchDevices();
+    }
+  }, [isConnected]);
 
   // 2. Initialize Agora RTC Stream & Socket Signalling
   useEffect(() => {
@@ -339,6 +370,30 @@ export default function ActiveCallModal({ session, onClose }) {
       if (targetEl) {
         setTimeout(() => playLocalVideoTrack(targetEl), 200);
       }
+    }
+  };
+
+  const handleMicChange = async (e) => {
+    const deviceId = e.target.value;
+    setSelectedMic(deviceId);
+    await switchMicrophone(deviceId);
+  };
+  const handleCameraChange = async (e) => {
+    const deviceId = e.target.value;
+    setSelectedCamera(deviceId);
+    await switchCamera(deviceId);
+  };
+  const handleSpeakerChange = async (e) => {
+    const deviceId = e.target.value;
+    setSelectedSpeaker(deviceId);
+    if (remoteUser && remoteUser.audioTrack) {
+      await remoteUser.audioTrack.setPlaybackDevice(deviceId);
+    }
+  };
+  const handleVolumeBoost = (boostLevel) => {
+    setVolumeBoost(boostLevel);
+    if (remoteUser && remoteUser.audioTrack) {
+      remoteUser.audioTrack.setVolume(boostLevel);
     }
   };
 
@@ -655,6 +710,53 @@ export default function ActiveCallModal({ session, onClose }) {
       {/* Floating Bottom Control Bar */}
       <div className="absolute bottom-5 inset-x-0 z-30 flex flex-col items-center px-4">
         
+        {showSettings && (
+          <div className="bg-slate-900/90 text-white p-4 rounded-2xl mb-4 border border-white/10 shadow-2xl flex flex-col gap-3 max-w-sm w-full backdrop-blur-md">
+            <span className="text-[12px] font-bold text-[#FF7448]">Hardware & Speaker Output Settings</span>
+            
+            <div className="flex flex-col gap-1 text-left">
+              <label className="text-[10px] text-gray-400">Microphone Input</label>
+              <select value={selectedMic} onChange={handleMicChange} className="bg-slate-800 text-xs p-1.5 rounded-lg border border-white/10">
+                <option value="">Default Mic</option>
+                {microphones.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label}</option>)}
+              </select>
+            </div>
+            {isVideoCall && (
+              <div className="flex flex-col gap-1 text-left">
+                <label className="text-[10px] text-gray-400">Camera Input</label>
+                <select value={selectedCamera} onChange={handleCameraChange} className="bg-slate-800 text-xs p-1.5 rounded-lg border border-white/10">
+                  <option value="">Default Camera</option>
+                  {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="flex flex-col gap-1 text-left">
+              <label className="text-[10px] text-gray-400">Speaker Output (Speaker Option)</label>
+              <select value={selectedSpeaker} onChange={handleSpeakerChange} className="bg-slate-800 text-xs p-1.5 rounded-lg border border-white/10">
+                <option value="">Default Speaker</option>
+                {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 text-left mt-1.5">
+              <label className="text-[10px] text-gray-400">Speaker Volume Boost: <span className="font-bold text-[#FF7448]">{volumeBoost}%</span></label>
+              <div className="flex gap-2">
+                {[100, 200, 300, 400].map(vol => (
+                  <button
+                    key={vol}
+                    type="button"
+                    onClick={() => handleVolumeBoost(vol)}
+                    className={`flex-1 text-[10px] py-1 rounded font-bold border transition-all ${
+                      volumeBoost === vol ? "bg-[#FF7448] border-[#FF7448] text-white" : "bg-slate-800 border-white/10 hover:bg-slate-700"
+                    }`}
+                  >
+                    {vol === 100 ? "Normal" : `${vol/100}x Boost`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Buttons Row */}
         <div className="flex items-center gap-6">
           {/* Toggle Microphone */}
@@ -696,6 +798,17 @@ export default function ActiveCallModal({ session, onClose }) {
             title="Toggle Chat"
           >
             <MessageSquare className="w-6 h-6" />
+          </button>
+
+          {/* Device Settings Button */}
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl cursor-pointer border ${
+              showSettings ? "bg-purple-600 border-purple-500 text-white" : "bg-white/10 hover:bg-white/20 text-white border-white/20"
+            }`}
+            title="Device Settings & Speaker Boost"
+          >
+            <Volume2 className="w-6 h-6" />
           </button>
 
           {/* End Call Button */}

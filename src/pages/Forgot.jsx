@@ -7,6 +7,7 @@ export default function Forgot({ onNavigateToLogin }) {
   const [inputVal, setInputVal] = useState("");
   const [submittedValue, setSubmittedValue] = useState("");
   const [loadingStep1, setLoadingStep1] = useState(false);
+  const [registeredPhone, setRegisteredPhone] = useState(null);
   const [step1Error, setStep1Error] = useState("");
 
   // Step 2 OTP states (6 digits)
@@ -72,23 +73,26 @@ export default function Forgot({ onNavigateToLogin }) {
 
       if (response.ok || data.success || data.status === "success") {
         setSubmittedValue(isNum ? `+91 ${val.trim()}` : val.trim());
+        const phoneVal = data.data?.targetPhone || data.targetPhone;
+        if (phoneVal) {
+          const cleanPhone = phoneVal.replace("+91", "").trim();
+          const masked = cleanPhone.length >= 10 
+            ? `${cleanPhone.slice(0, 2)}******${cleanPhone.slice(-2)}` 
+            : cleanPhone;
+          setRegisteredPhone(`+91 ${masked}`);
+        } else {
+          setRegisteredPhone(null);
+        }
         setStep(2);
         setTimer(30);
         setCanResend(false);
       } else {
         const msg = data.message || data.error || "Failed to send OTP.";
         setStep1Error(msg);
-        setSubmittedValue(isNum ? `+91 ${val.trim()}` : val.trim());
-        setStep(2);
-        setTimer(30);
-        setCanResend(false);
       }
     } catch (err) {
       console.error("Send OTP API error:", err);
-      setSubmittedValue(isNum ? `+91 ${val.trim()}` : val.trim());
-      setStep(2);
-      setTimer(30);
-      setCanResend(false);
+      setStep1Error("Network error. Failed to send OTP.");
     } finally {
       setLoadingStep1(false);
     }
@@ -443,6 +447,7 @@ export default function Forgot({ onNavigateToLogin }) {
                 </h1>
                 <p className="text-gray-400/80 text-[12px] text-center mb-3 leading-relaxed px-1">
                   OTP sent to: <span className="text-[#ff7448] font-bold">{submittedValue}</span>
+                  {registeredPhone && <span className="block text-[11.5px] text-[#ffa000] font-semibold mt-1">Sent to registered mobile: {registeredPhone}</span>}
                 </p>
 
                 {/* OTP Error Message */}
