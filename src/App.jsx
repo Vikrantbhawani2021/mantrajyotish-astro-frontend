@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate, useParams } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -189,6 +189,30 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Dashboard onLogout={handleLogout} initialOpenWithdraw={true} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/call/:sessionId"
+        element={
+          <ProtectedRoute>
+            <Dashboard onLogout={handleLogout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/video/:sessionId"
+        element={
+          <ProtectedRoute>
+            <Dashboard onLogout={handleLogout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chat/:sessionId"
+        element={
+          <ProtectedRoute>
+            <Dashboard onLogout={handleLogout} />
           </ProtectedRoute>
         }
       />

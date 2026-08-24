@@ -811,3 +811,11 @@ export const updateAstroProfileApi = async (astroId, payload) => {
     throw err;
   }
 };
+
+/**
+ * Fetch call session by ID
+ */
+export const fetchCallStateApi = async (sessionId) => {
+  const response = await api.get(`/api/calls/${sessionId}`);
+  return response.data;
+};

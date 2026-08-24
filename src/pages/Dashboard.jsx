@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import axiosInstance from "../config/axiosInstance";
+import { fetchCallStateApi } from "../config/api";
 import { ArrowLeft, ChevronDown, Mic, Video, MessageSquare, Radio, Mail, Phone, Briefcase, User, Mars, Sliders, Building, Compass, MapPin, Sparkles, LogOut, Camera, Loader2, Play, MessageCircle, CheckCircle, ShieldAlert } from "lucide-react";
 import { uploadImageApi, fetchChatHistoryApi, checkPendingRequestsApi, BACKEND_URL } from "../config/api";
 import Header from "../components/Header";
@@ -971,6 +974,58 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
   // Audio & Video Call States
   const [incomingCallRequest, setIncomingCallRequest] = useState(null);
   const [activeCallSession, setActiveCallSession] = useState(null);
+
+  // Redirect to unique URL when call session starts
+  useEffect(() => {
+    if (activeCallSession) {
+      const sId = activeCallSession.sessionId || activeCallSession._id || activeCallSession.id;
+      const pathType = String(activeCallSession.callType || "AUDIO").toUpperCase() === "VIDEO" ? "video" : "call";
+      if (sId && !window.location.pathname.includes(`/${pathType}/${sId}`)) {
+        navigate(`/${pathType}/${sId}`, { replace: true });
+      }
+    }
+  }, [activeCallSession]);
+
+  // Redirect to unique URL when chat session starts
+  useEffect(() => {
+    if (activeChatSession) {
+      const sId = activeChatSession.sessionId || activeChatSession._id || activeChatSession.id;
+      if (sId && !window.location.pathname.includes(`/chat/${sId}`)) {
+        navigate(`/chat/${sId}`, { replace: true });
+      }
+    }
+  }, [activeChatSession]);
+
+  // Redirect back to dashboard when call or chat ends
+  useEffect(() => {
+    if (!activeCallSession && !activeChatSession) {
+      if (window.location.pathname !== "/dashboard" && window.location.pathname !== "/wallet" && window.location.pathname !== "/withdraw") {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [activeCallSession, activeChatSession]);
+
+  const { sessionId } = useParams();
+  useEffect(() => {
+    if (sessionId) {
+      // Fetch call session by URL parameter
+      const loadSession = async () => {
+        try {
+          const res = await axiosInstance.get(`/api/calls/${sessionId}`);
+          const session = res.data.session || res.data.data || res.data;
+          if (window.location.pathname.includes("/chat")) {
+            setActiveChatSession(session);
+          } else {
+            setActiveCallSession(session);
+          }
+        } catch (err) {
+          console.error("Failed to load secure call session:", err);
+          alert("Could not load call session: unauthorized or invalid link");
+        }
+      };
+      loadSession();
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     // Connect to Socket.io backend on Dashboard load

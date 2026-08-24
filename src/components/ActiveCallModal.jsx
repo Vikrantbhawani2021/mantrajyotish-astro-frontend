@@ -40,6 +40,8 @@ export default function ActiveCallModal({ session, onClose }) {
   const [selectedSpeaker, setSelectedSpeaker] = useState("");
   const [volumeBoost, setVolumeBoost] = useState(100);
   const [showSettings, setShowSettings] = useState(false);
+  const [isBillingPaused, setIsBillingPaused] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -79,17 +81,34 @@ export default function ActiveCallModal({ session, onClose }) {
 
   // 1. Duration Timer
   useEffect(() => {
+    if (isBillingPaused) return; // Freeze timer on UI during recharge
     const timer = setInterval(() => {
       setDuration((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
+  }, [isBillingPaused]);
+
+  useEffect(() => {
+    const unsubPaused = subscribeSocketEvent("billing_paused", (data) => {
+      console.log("⏸️ User is recharging, billing paused:", data?.message);
+      setIsBillingPaused(true);
+    });
+    const unsubResumed = subscribeSocketEvent("billing_resumed", (data) => {
+      console.log("▶️ Recharge successful, billing resumed:", data?.message);
+      setIsBillingPaused(false);
+    });
+    return () => {
+      unsubPaused();
+      unsubResumed();
+    };
   }, []);
 
   useEffect(() => {
     const fetchDevices = async () => {
       try {
         const mics = await AgoraRTC.getMicrophones();
-        const cams = await AgoraRTC.getCameras();
+        // Query cameras only if it is a Video Call to prevent audio calls from asking camera permission
+        const cams = isVideoCall ? await AgoraRTC.getCameras() : [];
         const plays = await AgoraRTC.getPlaybackDevices();
         setMicrophones(mics);
         setCameras(cams);
@@ -101,7 +120,7 @@ export default function ActiveCallModal({ session, onClose }) {
     if (isConnected) {
       fetchDevices();
     }
-  }, [isConnected]);
+  }, [isConnected, isVideoCall]);
 
   // 2. Initialize Agora RTC Stream & Socket Signalling
   useEffect(() => {
@@ -397,6 +416,16 @@ export default function ActiveCallModal({ session, onClose }) {
     }
   };
 
+  const handleToggleSpeaker = () => {
+    const nextState = !isSpeakerOn;
+    setIsSpeakerOn(nextState);
+    const boostLevel = nextState ? 300 : 100; // 300% for Speakerphone, 100% for Normal Earpiece
+    setVolumeBoost(boostLevel);
+    if (remoteUser && remoteUser.audioTrack) {
+      remoteUser.audioTrack.setVolume(boostLevel);
+    }
+  };
+
   const handleEndCall = async () => {
     let summary = null;
     try {
@@ -452,6 +481,14 @@ export default function ActiveCallModal({ session, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-[#090D1A] via-[#0E1326] to-[#05070F] text-white overflow-hidden animate-fade-in">
       
+      {isBillingPaused && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-55 flex flex-col items-center justify-center text-white px-6 text-center animate-fade-in">
+          <div className="w-16 h-16 border-4 border-[#FF7448] border-t-transparent rounded-full animate-spin mb-4"></div>
+          <h3 className="text-xl font-bold">Client is Recharging Wallet</h3>
+          <p className="text-sm text-gray-400 mt-2 max-w-xs">Billing is paused. The call will automatically resume once the recharge is complete. Please do not hang up.</p>
+        </div>
+      )}
+
       {/* Top Header Floating Bar */}
       <div className="absolute top-6 inset-x-0 z-20 flex flex-col items-center gap-2 px-4">
         {/* Main Status Capsule */}
@@ -709,53 +746,6 @@ export default function ActiveCallModal({ session, onClose }) {
 
       {/* Floating Bottom Control Bar */}
       <div className="absolute bottom-5 inset-x-0 z-30 flex flex-col items-center px-4">
-        
-        {showSettings && (
-          <div className="bg-slate-900/90 text-white p-4 rounded-2xl mb-4 border border-white/10 shadow-2xl flex flex-col gap-3 max-w-sm w-full backdrop-blur-md">
-            <span className="text-[12px] font-bold text-[#FF7448]">Hardware & Speaker Output Settings</span>
-            
-            <div className="flex flex-col gap-1 text-left">
-              <label className="text-[10px] text-gray-400">Microphone Input</label>
-              <select value={selectedMic} onChange={handleMicChange} className="bg-slate-800 text-xs p-1.5 rounded-lg border border-white/10">
-                <option value="">Default Mic</option>
-                {microphones.map(m => <option key={m.deviceId} value={m.deviceId}>{m.label}</option>)}
-              </select>
-            </div>
-            {isVideoCall && (
-              <div className="flex flex-col gap-1 text-left">
-                <label className="text-[10px] text-gray-400">Camera Input</label>
-                <select value={selectedCamera} onChange={handleCameraChange} className="bg-slate-800 text-xs p-1.5 rounded-lg border border-white/10">
-                  <option value="">Default Camera</option>
-                  {cameras.map(c => <option key={c.deviceId} value={c.deviceId}>{c.label}</option>)}
-                </select>
-              </div>
-            )}
-            <div className="flex flex-col gap-1 text-left">
-              <label className="text-[10px] text-gray-400">Speaker Output (Speaker Option)</label>
-              <select value={selectedSpeaker} onChange={handleSpeakerChange} className="bg-slate-800 text-xs p-1.5 rounded-lg border border-white/10">
-                <option value="">Default Speaker</option>
-                {speakers.map(s => <option key={s.deviceId} value={s.deviceId}>{s.label}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 text-left mt-1.5">
-              <label className="text-[10px] text-gray-400">Speaker Volume Boost: <span className="font-bold text-[#FF7448]">{volumeBoost}%</span></label>
-              <div className="flex gap-2">
-                {[100, 200, 300, 400].map(vol => (
-                  <button
-                    key={vol}
-                    type="button"
-                    onClick={() => handleVolumeBoost(vol)}
-                    className={`flex-1 text-[10px] py-1 rounded font-bold border transition-all ${
-                      volumeBoost === vol ? "bg-[#FF7448] border-[#FF7448] text-white" : "bg-slate-800 border-white/10 hover:bg-slate-700"
-                    }`}
-                  >
-                    {vol === 100 ? "Normal" : `${vol/100}x Boost`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Buttons Row */}
         <div className="flex items-center gap-6">
@@ -800,13 +790,15 @@ export default function ActiveCallModal({ session, onClose }) {
             <MessageSquare className="w-6 h-6" />
           </button>
 
-          {/* Device Settings Button */}
+          {/* Replace Settings button with simple Speaker toggle */}
           <button
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={handleToggleSpeaker}
             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-xl cursor-pointer border ${
-              showSettings ? "bg-purple-600 border-purple-500 text-white" : "bg-white/10 hover:bg-white/20 text-white border-white/20"
+              isSpeakerOn 
+                ? "bg-emerald-500 border-emerald-400 text-white shadow-emerald-500/30" 
+                : "bg-white/10 hover:bg-white/20 text-white border-white/20"
             }`}
-            title="Device Settings & Speaker Boost"
+            title={isSpeakerOn ? "Turn Speaker Off" : "Turn Speaker On"}
           >
             <Volume2 className="w-6 h-6" />
           </button>
