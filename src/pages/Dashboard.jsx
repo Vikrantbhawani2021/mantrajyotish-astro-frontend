@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../config/axiosInstance";
 import { fetchCallStateApi } from "../config/api";
@@ -976,9 +976,15 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
   const [incomingCallRequest, setIncomingCallRequest] = useState(null);
   const [activeCallSession, setActiveCallSession] = useState(null);
 
+  // Guard ref: only redirect back to dashboard AFTER a session was previously active.
+  // Without this, on page refresh the redirect fires immediately (both states null)
+  // and kicks the astrologer out of the call page before the session can be restored.
+  const hadActiveSession = useRef(false);
+
   // Redirect to unique URL when call session starts
   useEffect(() => {
     if (activeCallSession) {
+      hadActiveSession.current = true;
       const sId = activeCallSession.sessionId || activeCallSession._id || activeCallSession.id;
       const pathType = String(activeCallSession.callType || "AUDIO").toUpperCase() === "VIDEO" ? "video" : "call";
       if (sId && !window.location.pathname.includes(`/${pathType}/${sId}`)) {
@@ -990,6 +996,7 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
   // Redirect to unique URL when chat session starts
   useEffect(() => {
     if (activeChatSession) {
+      hadActiveSession.current = true;
       const sId = activeChatSession.sessionId || activeChatSession._id || activeChatSession.id;
       if (sId && !window.location.pathname.includes(`/chat/${sId}`)) {
         navigate(`/chat/${sId}`, { replace: true });
@@ -997,32 +1004,55 @@ export default function Dashboard({ onLogout, initialOpenWithdraw = false }) {
     }
   }, [activeChatSession]);
 
-  // Redirect back to dashboard when call or chat ends
+  // Redirect back ONLY after a session was active (not on initial mount/refresh)
   useEffect(() => {
-    if (!activeCallSession && !activeChatSession) {
-      if (window.location.pathname !== "/dashboard" && window.location.pathname !== "/wallet" && window.location.pathname !== "/withdraw") {
+    if (!activeCallSession && !activeChatSession && hadActiveSession.current) {
+      if (!["/dashboard", "/wallet", "/withdraw"].includes(window.location.pathname)) {
         navigate("/dashboard", { replace: true });
       }
     }
   }, [activeCallSession, activeChatSession]);
 
   const { sessionId } = useParams();
+
+  // Warn astrologer before leaving an active session via back/refresh
   useEffect(() => {
-    // Skip if a session is already active (established via socket - the normal flow)
+    const handleBeforeUnload = (e) => {
+      if (activeCallSession || activeChatSession) {
+        e.preventDefault();
+        e.returnValue = "Your session is still active. Leaving will disconnect you.";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [activeCallSession, activeChatSession]);
+
+  // Restore session from URL after refresh (skip if socket already provided a session)
+  useEffect(() => {
     if (!sessionId || activeCallSession || activeChatSession) return;
     const loadSession = async () => {
       try {
         const res = await axiosInstance.get(`/api/calls/${sessionId}`);
         const session = res.data.session || res.data.data || res.data;
-        if (!session || typeof session !== 'object') return;
-        if (window.location.pathname.includes('/chat')) {
+        if (!session || typeof session !== "object") return;
+
+        // If session is already COMPLETED, navigate back silently
+        if (session.status && !["ACTIVE", "PENDING"].includes(session.status)) {
+          console.log("Session already completed, returning to dashboard.");
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+
+        // Session is ACTIVE — restore it so ActiveCallModal / ChatModal reopens.
+        // API now returns appId, agoraToken, channelName for Agora rejoin.
+        if (window.location.pathname.includes("/chat")) {
           setActiveChatSession(session);
         } else {
           setActiveCallSession(session);
         }
       } catch (err) {
-        // Non-blocking: call is already active via socket - suppress alert
-        console.warn('Could not restore session from URL (non-blocking):', err?.response?.status, sessionId);
+        console.warn("Could not restore session from URL:", err?.response?.status, sessionId);
+        navigate("/dashboard", { replace: true });
       }
     };
     loadSession();
