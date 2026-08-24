@@ -20,7 +20,7 @@ export default function ActiveChatModal({ session, onClose }) {
   const handleScroll = () => {
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 50;
     setShowScrollBottom(isScrolledUp);
   };
 
@@ -64,7 +64,7 @@ export default function ActiveChatModal({ session, onClose }) {
         if (chatContainerRef.current) {
           const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
           // If the user has scrolled up past 300px from the bottom, isAtBottom is false
-          isAtBottom = scrollHeight - scrollTop - clientHeight <= 300;
+          isAtBottom = scrollHeight - scrollTop - clientHeight <= 50;
         }
         
         // Only auto-scroll to bottom if user is already at the bottom or sent the message
