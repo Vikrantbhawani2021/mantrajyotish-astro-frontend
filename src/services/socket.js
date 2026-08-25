@@ -98,10 +98,12 @@ export const extractUserData = (data) => {
   const name = rawName && typeof rawName === "string" && rawName.trim() ? rawName.trim() : fallbackName;
 
   const avatar =
+    userObj.profileImage ||
     userObj.avatar ||
     userObj.profilePic ||
     userObj.image ||
     userObj.photo ||
+    data.profileImage ||
     data.avatar ||
     data.userAvatar ||
     data.profilePic ||

@@ -508,7 +508,7 @@ export const checkPendingRequestsApi = async () => {
               user: {
                 _id: userObj._id || userObj.id || userIdStr || "",
                 name: name,
-                avatar: userObj.avatar || req.userAvatar || req.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80",
+                avatar: userObj.profileImage || userObj.avatar || req.userAvatar || req.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80",
                 dob: userObj.dob || userObj.dateofbirth || userObj.dateOfBirth || req.dob || "Not Specified",
                 tob: userObj.tob || userObj.timeofbirth || userObj.timeOfBirth || req.tob || "Not Specified",
                 pob: userObj.pob || userObj.placeofbirth || userObj.placeOfBirth || req.pob || "Not Specified",
@@ -765,7 +765,7 @@ export const checkPendingCallRequestsApi = async () => {
               user: {
                 _id: userObj._id || userObj.id || "",
                 name: name,
-                avatar: userObj.avatar || req.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80",
+                avatar: userObj.profileImage || userObj.avatar || req.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80",
                 dob: userObj.dob || userObj.dateofbirth || userObj.dateOfBirth || req.dob || "Not Specified",
                 tob: userObj.tob || userObj.timeofbirth || userObj.timeOfBirth || req.tob || "Not Specified",
                 pob: userObj.pob || userObj.placeofbirth || userObj.placeOfBirth || req.pob || "Not Specified",
