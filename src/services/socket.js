@@ -23,30 +23,8 @@ const listeners = {
  * Audio Synthesizer for incoming request alert (works without any external mp3 file)
  */
 export const playNotificationSound = () => {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    
-    // Play dual-tone chime
-    const playTone = (freq, startTime, duration) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime + startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + startTime);
-      osc.stop(ctx.currentTime + startTime + duration);
-    };
-
-    playTone(587.33, 0, 0.2); // D5
-    playTone(880, 0.2, 0.4);   // A5
-  } catch (err) {
-    console.error("Audio playback error:", err);
-  }
+  // Completely disabled - no tung-tung sound
+  return;
 };
 
 /**
@@ -297,7 +275,7 @@ export const connectSocket = () => {
       requestedAt: sessionData.createdAt || data.createdAt || new Date().toISOString()
     };
 
-    playNotificationSound();
+    // playNotificationSound(); // Disabled old tung-tung chime in favor of 30s ringtone
     listeners.incomingRequest.forEach((fn) => fn(normalizedData));
   };
 
@@ -345,7 +323,7 @@ export const connectSocket = () => {
       requestedAt: sessionObj.createdAt || data.createdAt || new Date().toISOString()
     };
 
-    playNotificationSound();
+    // playNotificationSound(); // Disabled old tung-tung chime in favor of 30s ringtone
     listeners.incomingCallRequest.forEach((fn) => fn(normalizedData));
   };
 
@@ -683,7 +661,7 @@ export const triggerDemoIncomingRequest = () => {
     minMinutes: 3,
     requestedAt: new Date().toISOString()
   };
-  playNotificationSound();
+  // playNotificationSound(); // Disabled old tung-tung chime in favor of 30s ringtone
   listeners.incomingRequest.forEach((fn) => fn(demoData));
   return demoData;
 };
@@ -775,7 +753,7 @@ export const triggerDemoIncomingCallRequest = (callType = "VIDEO") => {
     },
     requestedAt: new Date().toISOString()
   };
-  playNotificationSound();
+  // playNotificationSound(); // Disabled old tung-tung chime in favor of 30s ringtone
   listeners.incomingCallRequest.forEach((fn) => fn(demoCallData));
   return demoCallData;
 };

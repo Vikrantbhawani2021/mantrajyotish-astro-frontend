@@ -94,7 +94,20 @@ export default function Header() {
     ? (Array.isArray(astroUser.specialization) ? astroUser.specialization.join(", ") : astroUser.specialization) 
     : (astroUser.skills || "Vedic Astrology Expert");
 
+  
+  const prewarmRingtone = () => {
+    try {
+      const a = new Audio("/sounds/ringtone.mp3");
+      a.volume = 0.01;
+      a.play().then(() => {
+        a.pause();
+        a.currentTime = 0;
+      }).catch(() => {});
+    } catch (e) {}
+  };
+
   const handleToggleStatus = async () => {
+    prewarmRingtone();
     const previousState = online;
     const nextState = !online;
     // 1. Optimistically update UI state & localStorage immediately

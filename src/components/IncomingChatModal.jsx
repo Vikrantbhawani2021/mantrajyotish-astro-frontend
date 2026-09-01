@@ -12,6 +12,28 @@ export default function IncomingChatModal({ request, onAccept, onDecline }) {
   const user = request?.user || {};
   const perMinuteRate = Number(request?.perMinuteRate || request?.rate || 20) || 20;
 
+  // Play 30-second Ringtone on Incoming Request (Only when Astrologer is ONLINE)
+  useEffect(() => {
+    const isOnline = localStorage.getItem("astro_is_online");
+    if (isOnline === "false") {
+      console.log("Astrologer is OFFLINE: Ringtone sound suppressed.");
+      return;
+    }
+
+    const ringtoneUrl = request?.ringtoneUrl || "/sounds/ringtone.mp3";
+    const audio = new Audio(ringtoneUrl);
+    audio.loop = true;
+
+    audio.play().catch(err => {
+      console.warn("Background ringtone playback notice:", err);
+    });
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, [request]);
+
   useEffect(() => {
     if (timeLeft <= 0) {
       handleDecline();
